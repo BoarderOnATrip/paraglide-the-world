@@ -1,0 +1,600 @@
+.sim-shell {
+  position: relative;
+  min-height: 100vh;
+  color: #f5f7fb;
+  background:
+    radial-gradient(circle at top, rgba(125, 211, 252, 0.2), transparent 35%),
+    linear-gradient(180deg, #040913 0%, #07131f 52%, #07101a 100%);
+  overflow: hidden;
+}
+
+.sim-shell--flight {
+  background:
+    radial-gradient(circle at top, rgba(125, 211, 252, 0.14), transparent 28%),
+    linear-gradient(180deg, #02060e 0%, #04101a 52%, #050d15 100%);
+}
+
+.sim-world,
+.sim-shell__scrim {
+  position: absolute;
+  inset: 0;
+}
+
+.sim-world {
+  z-index: 0;
+}
+
+.sim-shell__scrim {
+  z-index: 1;
+  background:
+    linear-gradient(180deg, rgba(4, 9, 19, 0.2), rgba(4, 9, 19, 0.62)),
+    radial-gradient(circle at center, transparent 35%, rgba(4, 9, 19, 0.38) 100%);
+  pointer-events: none;
+}
+
+.sim-shell--flight .sim-shell__scrim {
+  background:
+    linear-gradient(180deg, rgba(2, 7, 14, 0.08), rgba(2, 7, 14, 0.2)),
+    radial-gradient(circle at center, transparent 48%, rgba(2, 7, 14, 0.18) 100%);
+}
+
+.sim-hero,
+.sim-grid {
+  position: relative;
+  z-index: 2;
+}
+
+.sim-topbar,
+.sim-flight-hud {
+  position: relative;
+  z-index: 3;
+}
+
+.sim-topbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 1rem 1.5rem 0;
+}
+
+.sim-view-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  border: 1px solid rgba(139, 209, 255, 0.22);
+  border-radius: 999px;
+  padding: 0.7rem 0.95rem;
+  font: inherit;
+  color: #f5f7fb;
+  background: rgba(5, 14, 25, 0.68);
+  backdrop-filter: blur(18px);
+  cursor: pointer;
+}
+
+.sim-view-toggle span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.2rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(245, 247, 251, 0.8);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sim-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(320px, 0.8fr);
+  gap: 1.5rem;
+  padding: 1.5rem 1.5rem 0;
+}
+
+.sim-kicker,
+.sim-panel__eyebrow {
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #8bd1ff;
+}
+
+.sim-hero h1,
+.sim-panel h2 {
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.sim-hero h1 {
+  font-size: clamp(2.5rem, 6vw, 4.8rem);
+}
+
+.sim-copy,
+.sim-panel__body {
+  margin: 0.8rem 0 0;
+  max-width: 64ch;
+  line-height: 1.6;
+  color: rgba(245, 247, 251, 0.86);
+}
+
+.sim-panel__body--tight {
+  margin-top: 0.55rem;
+}
+
+.sim-status,
+.sim-panel {
+  backdrop-filter: blur(18px);
+  background: rgba(6, 16, 28, 0.7);
+  border: 1px solid rgba(139, 209, 255, 0.16);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.34);
+}
+
+.sim-status {
+  display: grid;
+  gap: 0.4rem;
+  align-self: start;
+  padding: 1rem 1.1rem;
+  border-radius: 1rem;
+}
+
+.sim-status strong {
+  font-size: 0.95rem;
+}
+
+.sim-status span {
+  line-height: 1.5;
+  color: rgba(245, 247, 251, 0.8);
+}
+
+.sim-status--compact {
+  max-width: 28rem;
+  padding: 0.9rem 1rem;
+}
+
+.sim-status--ready {
+  border-color: rgba(110, 231, 183, 0.35);
+}
+
+.sim-status--error,
+.sim-status--config-needed {
+  border-color: rgba(251, 191, 36, 0.35);
+}
+
+.sim-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  padding: 1rem 1.5rem 1.5rem;
+  align-items: start;
+}
+
+.sim-panel {
+  padding: 1rem;
+  border-radius: 1rem;
+}
+
+.sim-panel--wide {
+  grid-column: span 2;
+}
+
+.sim-panel__header {
+  margin-bottom: 0.9rem;
+}
+
+.sim-site-meta,
+.sim-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  color: rgba(245, 247, 251, 0.72);
+  font-size: 0.92rem;
+}
+
+.sim-choice-group {
+  margin-top: 1rem;
+}
+
+.sim-choice-group__label {
+  margin: 0 0 0.65rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(139, 209, 255, 0.78);
+}
+
+.sim-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.sim-choice-grid--tiers {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.sim-choice {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.95rem;
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 140ms ease,
+    border-color 140ms ease,
+    background 140ms ease;
+}
+
+.sim-choice:hover {
+  transform: translateY(-1px);
+  border-color: rgba(139, 209, 255, 0.28);
+}
+
+.sim-choice strong {
+  font-size: 1rem;
+}
+
+.sim-choice span {
+  color: rgba(245, 247, 251, 0.72);
+  line-height: 1.45;
+}
+
+.sim-choice.is-selected {
+  border-color: rgba(125, 211, 252, 0.7);
+  background: rgba(125, 211, 252, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.12);
+}
+
+.sim-lesson {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 1rem;
+  padding: 0.85rem;
+  border-radius: 0.95rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  line-height: 1.55;
+}
+
+.sim-lesson__done {
+  color: rgba(245, 247, 251, 0.42);
+}
+
+.sim-lesson__current {
+  padding: 0 0.45rem;
+  border-radius: 999px;
+  background: rgba(125, 211, 252, 0.18);
+  color: #8bd1ff;
+  font-weight: 700;
+}
+
+.sim-lesson__next {
+  color: rgba(245, 247, 251, 0.82);
+}
+
+.sim-pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
+.sim-pill {
+  padding: 0.45rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(245, 247, 251, 0.82);
+  font-size: 0.9rem;
+}
+
+.sim-pill--correct,
+.sim-pill--gold {
+  background: rgba(110, 231, 183, 0.14);
+  color: #a7f3d0;
+}
+
+.sim-pill--wrong,
+.sim-pill--bronze {
+  background: rgba(251, 191, 36, 0.14);
+  color: #fcd34d;
+}
+
+.sim-pill--silver {
+  background: rgba(148, 163, 184, 0.18);
+  color: #e2e8f0;
+}
+
+.sim-checkpoint-list {
+  display: grid;
+  gap: 0.7rem;
+  margin-top: 1rem;
+}
+
+.sim-checkpoint {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.8rem 0.9rem;
+  border-radius: 0.95rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sim-checkpoint span {
+  color: rgba(245, 247, 251, 0.68);
+}
+
+.sim-checkpoint--active {
+  border-color: rgba(125, 211, 252, 0.45);
+  background: rgba(125, 211, 252, 0.1);
+}
+
+.sim-checkpoint--cleared {
+  border-color: rgba(110, 231, 183, 0.35);
+}
+
+.sim-result {
+  display: grid;
+  gap: 0.3rem;
+  margin-top: 1rem;
+  padding: 0.85rem;
+  border-radius: 0.95rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sim-result span {
+  color: rgba(245, 247, 251, 0.72);
+}
+
+.sim-result--gold {
+  border-color: rgba(250, 204, 21, 0.4);
+}
+
+.sim-result--silver {
+  border-color: rgba(148, 163, 184, 0.35);
+}
+
+.sim-result--bronze {
+  border-color: rgba(249, 115, 22, 0.35);
+}
+
+.sim-stat-grid,
+.sim-controls {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.sim-stat-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.sim-stat,
+.sim-control,
+.sim-lift-stack > div {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.85rem;
+  border-radius: 0.9rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sim-stat strong,
+.sim-control strong,
+.sim-lift-stack strong {
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.sim-stat span,
+.sim-control span,
+.sim-lift-stack span {
+  color: rgba(245, 247, 251, 0.72);
+  line-height: 1.45;
+}
+
+.sim-lift-stack {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.sim-controls {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.sim-control.is-active {
+  border-color: rgba(110, 231, 183, 0.55);
+  background: rgba(110, 231, 183, 0.12);
+}
+
+.sim-button {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.75rem 1rem;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  color: #04111d;
+  background: linear-gradient(135deg, #7dd3fc, #f59e0b);
+}
+
+.sim-flight-hud {
+  display: grid;
+  gap: 1rem;
+  min-height: calc(100vh - 4.5rem);
+  padding: 0.5rem 1.5rem 1.5rem;
+}
+
+.sim-flight-hud__top,
+.sim-flight-hud__bottom {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.sim-flight-hud__bottom {
+  margin-top: auto;
+  align-items: flex-end;
+}
+
+.sim-flight-hud__strip,
+.sim-flight-controls {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.sim-flight-hud__strip {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-self: start;
+  max-width: 78rem;
+}
+
+.sim-flight-controls {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  min-width: min(100%, 34rem);
+}
+
+.sim-flight-card,
+.sim-flight-chip,
+.sim-flight-control {
+  backdrop-filter: blur(18px);
+  background: rgba(4, 12, 20, 0.5);
+  border: 1px solid rgba(139, 209, 255, 0.14);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
+}
+
+.sim-flight-card {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.95rem 1rem;
+  border-radius: 1rem;
+  max-width: 26rem;
+}
+
+.sim-flight-card h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.sim-flight-card p {
+  margin: 0;
+  color: rgba(245, 247, 251, 0.78);
+  line-height: 1.5;
+}
+
+.sim-flight-card--wide {
+  max-width: 32rem;
+}
+
+.sim-flight-chip,
+.sim-flight-control {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.8rem 0.9rem;
+  border-radius: 0.95rem;
+}
+
+.sim-flight-chip strong,
+.sim-flight-control strong {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.sim-flight-chip span,
+.sim-flight-control span {
+  color: rgba(245, 247, 251, 0.72);
+  line-height: 1.35;
+}
+
+.sim-flight-control.is-active {
+  border-color: rgba(110, 231, 183, 0.55);
+  background: rgba(110, 231, 183, 0.14);
+}
+
+.cesium-widget-credits {
+  bottom: 0.35rem !important;
+  left: 0.55rem !important;
+  right: auto !important;
+}
+
+@media (max-width: 1180px) {
+  .sim-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .sim-flight-hud__top,
+  .sim-flight-hud__bottom {
+    flex-direction: column;
+  }
+
+  .sim-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sim-flight-hud__strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .sim-flight-controls {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    min-width: 0;
+    width: 100%;
+  }
+
+  .sim-panel--wide {
+    grid-column: span 2;
+  }
+
+  .sim-choice-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sim-controls {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .sim-hero,
+  .sim-grid,
+  .sim-topbar,
+  .sim-flight-hud {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .sim-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sim-panel--wide {
+    grid-column: auto;
+  }
+
+  .sim-choice-grid,
+  .sim-choice-grid--tiers {
+    grid-template-columns: 1fr;
+  }
+
+  .sim-flight-hud__strip,
+  .sim-flight-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sim-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sim-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

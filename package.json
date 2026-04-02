@@ -1,0 +1,11 @@
+{
+  "name": "paraglide-the-world",
+  "private": true,
+  "packageManager": "pnpm@10.22.0",
+  "scripts": {
+    "dev": "pnpm --filter @paraglide-the-world/web dev",
+    "build": "pnpm --filter @paraglide-the-world/web build",
+    "lint": "pnpm --filter @paraglide-the-world/web lint",
+    "test": "pnpm --filter @paraglide-the-world/web test"
+  }
+}

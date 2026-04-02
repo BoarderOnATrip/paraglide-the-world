@@ -1,0 +1,84 @@
+:root {
+  --bg: #f4e5cc;
+  --bg-deep: #e8d3ad;
+  --panel: #fbf4e7;
+  --panel-strong: rgba(255, 250, 242, 0.82);
+  --edge-soft: rgba(63, 88, 116, 0.14);
+  --edge-strong: rgba(63, 88, 116, 0.28);
+  --text: #4b5a67;
+  --text-muted: #6b7b88;
+  --text-strong: #1d2a35;
+  --shadow-soft: 0 24px 60px rgba(78, 63, 42, 0.14);
+  --sans: 'Avenir Next', 'Trebuchet MS', sans-serif;
+  --heading: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
+  --mono: 'SFMono-Regular', 'Consolas', 'Liberation Mono', monospace;
+
+  font: 18px/1.55 var(--sans);
+  letter-spacing: 0.01em;
+  color: var(--text);
+  background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background:
+    radial-gradient(circle at top, rgba(126, 185, 225, 0.42), transparent 38%),
+    linear-gradient(180deg, var(--bg) 0%, var(--bg-deep) 100%);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--heading);
+  color: var(--text-strong);
+  margin: 0;
+}
+
+h1 {
+  font-size: clamp(3rem, 5vw, 5rem);
+  line-height: 0.94;
+  letter-spacing: -0.05em;
+}
+
+h2 {
+  font-size: clamp(1.6rem, 2vw, 2.2rem);
+  line-height: 1.05;
+}
+
+p {
+  margin: 0;
+}
+
+a,
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button:focus-visible {
+  outline: 2px solid rgba(30, 78, 98, 0.7);
+  outline-offset: 3px;
+}
+
+@media (max-width: 1024px) {
+  :root {
+    font-size: 16px;
+  }
+}
