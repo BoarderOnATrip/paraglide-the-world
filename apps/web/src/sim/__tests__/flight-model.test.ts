@@ -1,159 +1,45 @@
 import { describe, expect, it } from 'vitest'
 import {
-  type AmbientAirState,
   createInitialFlightState,
   resetFlightStateForSite,
   stepFlightState,
-  type FlightSimState,
 } from '../flight-model'
 import {
-  DEFAULT_HOME_ROW_CONTROLS,
-  stepHomeRowControls,
-  type HomeRowControlState,
-} from '../home-row-controls'
-import type { FlightSite } from '../site-data'
-
-const testSite: FlightSite = {
-  id: 'test-site',
-  name: 'Test Site',
-  countryId: 'italy',
-  region: 'Test Range',
-  country: 'Testland',
-  description: 'Deterministic fixture used to exercise the flight model.',
-  latitude: 46,
-  longitude: 7,
-  launchAltitudeMeters: 1000,
-  spawnAglMeters: 120,
-  prevailingWindHeadingDeg: 0,
-  windSpeedKmh: 0,
-  baseRidgeLiftMetersPerSecond: 0,
-  routeLengthKm: 10,
-  thermals: [],
-}
-
-const thermalSite: FlightSite = {
-  ...testSite,
-  thermals: [
-    {
-      id: 'core',
-      latitude: 46,
-      longitude: 7,
-      radiusMeters: 1500,
-      liftMetersPerSecond: 2.5,
-    },
-  ],
-}
-
-const ridgeSite: FlightSite = {
-  ...testSite,
-  ridge: {
-    latitude: testSite.latitude,
-    longitude: testSite.longitude,
-    axisHeadingDeg: 0,
-    lengthMeters: 2200,
-    windwardDepthMeters: 420,
-    leeDepthMeters: 520,
-    peakLiftMetersPerSecond: 1.8,
-    leeSinkMetersPerSecond: 1,
-  },
-}
-
-const landingSite: FlightSite = {
-  ...testSite,
-  landingZone: {
-    latitude: testSite.latitude,
-    longitude: testSite.longitude,
-    headingDeg: 0,
-    lengthMeters: 240,
-    widthMeters: 80,
-  },
-}
-
-function makeStepInput(
-  overrides: Partial<{
-    deltaSeconds: number
-    controls: HomeRowControlState
-    site: FlightSite
-    terrainHeightMeters: number | null
-    atmosphere: AmbientAirState | null
-  }> = {},
-) {
-  return {
-    deltaSeconds: 0.2,
-    controls: DEFAULT_HOME_ROW_CONTROLS,
-    site: testSite,
-    terrainHeightMeters: testSite.launchAltitudeMeters,
-    atmosphere: null,
-    ...overrides,
-  }
-}
-
-function makeState(overrides: Partial<FlightSimState> = {}): FlightSimState {
-  return {
-    latitude: testSite.latitude,
-    longitude: testSite.longitude,
-    altitudeMeters: 1120,
-    terrainHeightMeters: testSite.launchAltitudeMeters,
-    headingDeg: 0,
-    bankDeg: 0,
-    pitchDeg: -6,
-    airspeedKmh: 36,
-    groundSpeedKmh: 36,
-    verticalSpeedMetersPerSecond: 0,
-    ridgeLiftMetersPerSecond: 0,
-    thermalLiftMetersPerSecond: 0,
-    groundClearanceMeters: 120,
-    distanceKm: 0,
-    elapsedSeconds: 0,
-    turnRateDegPerSecond: 0,
-    stallWarning: 0,
-    flareEffectiveness: 0,
-    landingZoneDistanceMeters: null,
-    landingApproachErrorDeg: null,
-    landingRating: 'none',
-    flightPhase: 'soaring',
-    ...overrides,
-  }
-}
+  buildControls,
+  createApproachScenarioSample,
+  createFlareScenarioSample,
+  createGlideTransitionScenarioSample,
+  createRidgePassScenarioSample,
+  createThermalClimbScenarioSample,
+  makeState,
+  makeStepInput,
+  TEST_SITE,
+} from './flight-test-fixtures'
 
 function headingDeltaDegrees(from: number, to: number) {
   return ((to - from + 540) % 360) - 180
 }
 
-function buildControls(
-  overrides: Partial<HomeRowControlState> = {},
-  steps = 1,
-  deltaSeconds = 0.2,
-) {
-  let controls: HomeRowControlState = {
-    ...DEFAULT_HOME_ROW_CONTROLS,
-    ...overrides,
-  }
-
-  for (let index = 0; index < steps; index += 1) {
-    controls = stepHomeRowControls(controls, deltaSeconds)
-  }
-
-  return controls
-}
-
 describe('createInitialFlightState', () => {
   it('seeds position, altitude, and clearance from the site and terrain', () => {
-    const state = createInitialFlightState(testSite, 1200)
+    const state = createInitialFlightState(TEST_SITE, 1200)
 
-    expect(state.latitude).toBe(testSite.latitude)
-    expect(state.longitude).toBe(testSite.longitude)
+    expect(state.latitude).toBe(TEST_SITE.latitude)
+    expect(state.longitude).toBe(TEST_SITE.longitude)
     expect(state.altitudeMeters).toBe(1320)
     expect(state.terrainHeightMeters).toBe(1200)
-    expect(state.groundClearanceMeters).toBe(testSite.spawnAglMeters)
-    expect(state.headingDeg).toBe(testSite.prevailingWindHeadingDeg)
+    expect(state.groundClearanceMeters).toBe(TEST_SITE.spawnAglMeters)
+    expect(state.headingDeg).toBe(TEST_SITE.prevailingWindHeadingDeg)
   })
 })
 
 describe('resetFlightStateForSite', () => {
   it('falls back to launch altitude when no terrain sample is available', () => {
-    const reset = resetFlightStateForSite(testSite, null)
-    const initial = createInitialFlightState(testSite, testSite.launchAltitudeMeters)
+    const reset = resetFlightStateForSite(TEST_SITE, null)
+    const initial = createInitialFlightState(
+      TEST_SITE,
+      TEST_SITE.launchAltitudeMeters,
+    )
 
     expect(reset).toEqual(initial)
   })
@@ -161,7 +47,7 @@ describe('resetFlightStateForSite', () => {
 
 describe('stepFlightState', () => {
   it('is deterministic for the same state and input', () => {
-    const state = createInitialFlightState(testSite)
+    const state = createInitialFlightState(TEST_SITE)
     const input = makeStepInput()
 
     expect(stepFlightState(state, input)).toEqual(stepFlightState(state, input))
@@ -169,7 +55,7 @@ describe('stepFlightState', () => {
 
   it('builds a held brake into a progressive turn instead of snapping to full bank', () => {
     const first = stepFlightState(
-      createInitialFlightState(testSite),
+      createInitialFlightState(TEST_SITE),
       makeStepInput({
         controls: buildControls({ leftBrake: true }, 1),
       }),
@@ -197,17 +83,11 @@ describe('stepFlightState', () => {
     expect(headingDeltaDegrees(second.headingDeg, third.headingDeg)).toBeLessThan(0)
   })
 
-  it('slows down and sinks more when both brakes are held together', () => {
-    const neutral = stepFlightState(createInitialFlightState(testSite), makeStepInput())
-    const symmetricBrake = stepFlightState(
-      createInitialFlightState(testSite),
-      makeStepInput({
-        controls: buildControls({
-          leftBrake: true,
-          rightBrake: true,
-        }),
-      }),
-    )
+  it('slows down and sinks more when the glide-transition scenario moves from trim to deep brake', () => {
+    const trim = createGlideTransitionScenarioSample('trim')
+    const deepBrake = createGlideTransitionScenarioSample('deep-brake')
+    const neutral = stepFlightState(trim.state, trim.input)
+    const symmetricBrake = stepFlightState(deepBrake.state, deepBrake.input)
 
     expect(symmetricBrake.bankDeg).toBeCloseTo(0, 4)
     expect(symmetricBrake.airspeedKmh).toBeLessThan(neutral.airspeedKmh)
@@ -217,9 +97,9 @@ describe('stepFlightState', () => {
   })
 
   it('lets weight shift alone roll the wing and add sink without brake input', () => {
-    const neutral = stepFlightState(createInitialFlightState(testSite), makeStepInput())
+    const neutral = stepFlightState(createInitialFlightState(TEST_SITE), makeStepInput())
     const weightShift = stepFlightState(
-      createInitialFlightState(testSite),
+      createInitialFlightState(TEST_SITE),
       makeStepInput({
         controls: buildControls({
           weightRight: true,
@@ -233,20 +113,17 @@ describe('stepFlightState', () => {
     )
   })
 
-  it('trades speed for sink when the speed bar is pushed', () => {
-    const calm = stepFlightState(createInitialFlightState(testSite), makeStepInput())
-    const boosted = stepFlightState(
-      createInitialFlightState(testSite),
-      makeStepInput({
-        controls: buildControls({
-          speedBar: true,
-        }),
-      }),
-    )
+  it('trades speed for sink when the glide-transition scenario moves from trim to speed bar', () => {
+    const trim = createGlideTransitionScenarioSample('trim')
+    const speedBar = createGlideTransitionScenarioSample('speed-bar')
+    const calm = stepFlightState(trim.state, trim.input)
+    const boosted = stepFlightState(speedBar.state, speedBar.input)
 
     expect(boosted.airspeedKmh).toBeGreaterThan(calm.airspeedKmh)
     expect(boosted.pitchDeg).toBeGreaterThan(calm.pitchDeg)
-    expect(boosted.verticalSpeedMetersPerSecond).toBeLessThan(calm.verticalSpeedMetersPerSecond)
+    expect(boosted.verticalSpeedMetersPerSecond).toBeLessThan(
+      calm.verticalSpeedMetersPerSecond,
+    )
   })
 
   it('keeps the glider above the terrain floor on a bad approach', () => {
@@ -266,90 +143,46 @@ describe('stepFlightState', () => {
     expect(next.flightPhase === 'landed' || next.flightPhase === 'crashed').toBe(true)
   })
 
-  it('adds thermal lift when the wing passes through a seeded thermal', () => {
-    const empty = stepFlightState(createInitialFlightState(testSite), makeStepInput())
-    const thermal = stepFlightState(
-      createInitialFlightState(thermalSite),
-      makeStepInput({ site: thermalSite }),
-    )
+  it('adds thermal lift when the thermal-climb scenario centers the wing in a seeded core', () => {
+    const empty = stepFlightState(createInitialFlightState(TEST_SITE), makeStepInput())
+    const thermal = createThermalClimbScenarioSample()
+    const climbed = stepFlightState(thermal.state, thermal.input)
 
-    expect(thermal.thermalLiftMetersPerSecond).toBeGreaterThan(
+    expect(climbed.thermalLiftMetersPerSecond).toBeGreaterThan(
       empty.thermalLiftMetersPerSecond,
     )
-    expect(thermal.verticalSpeedMetersPerSecond).toBeGreaterThan(
+    expect(climbed.verticalSpeedMetersPerSecond).toBeGreaterThan(
       empty.verticalSpeedMetersPerSecond,
     )
   })
 
-  it('rewards the windward side of a ridge and punishes the lee side', () => {
-    const atmosphere = {
-      windHeadingDeg: 90,
-      windSpeedKmh: 24,
-      turbulence: 0,
-    }
-    const windward = stepFlightState(
-      makeState({
-        longitude:
-          ridgeSite.longitude -
-          280 / 77_000,
-      }),
-      makeStepInput({
-        site: ridgeSite,
-        atmosphere,
-      }),
-    )
-    const lee = stepFlightState(
-      makeState({
-        longitude:
-          ridgeSite.longitude +
-          280 / 77_000,
-      }),
-      makeStepInput({
-        site: ridgeSite,
-        atmosphere,
-      }),
-    )
+  it('rewards the windward side of the ridge-pass scenario and punishes the lee side', () => {
+    const windward = createRidgePassScenarioSample('windward')
+    const lee = createRidgePassScenarioSample('lee')
+    const windwardResult = stepFlightState(windward.state, windward.input)
+    const leeResult = stepFlightState(lee.state, lee.input)
 
-    expect(windward.ridgeLiftMetersPerSecond).toBeGreaterThan(0)
-    expect(lee.airMassSinkMetersPerSecond).toBeGreaterThan(0)
-    expect(windward.verticalSpeedMetersPerSecond).toBeGreaterThan(
-      lee.verticalSpeedMetersPerSecond,
+    expect(windwardResult.ridgeLiftMetersPerSecond).toBeGreaterThan(0)
+    expect(leeResult.airMassSinkMetersPerSecond).toBeGreaterThan(0)
+    expect(windwardResult.verticalSpeedMetersPerSecond).toBeGreaterThan(
+      leeResult.verticalSpeedMetersPerSecond,
     )
   })
 
-  it('uses flare timing to improve touchdown quality near the landing zone', () => {
-    const noFlare = stepFlightState(
-      makeState({
-        altitudeMeters: 1000.35,
-        terrainHeightMeters: 1000,
-        groundClearanceMeters: 0.35,
-        airspeedKmh: 28,
-        groundSpeedKmh: 28,
-        elapsedSeconds: 36,
-        flightPhase: 'approach',
-      }),
-      makeStepInput({
-        site: landingSite,
-      }),
-    )
-    const flared = stepFlightState(
-      makeState({
-        altitudeMeters: 1000.35,
-        terrainHeightMeters: 1000,
-        groundClearanceMeters: 0.35,
-        airspeedKmh: 28,
-        groundSpeedKmh: 28,
-        elapsedSeconds: 36,
-        flightPhase: 'approach',
-      }),
-      makeStepInput({
-        site: landingSite,
-        controls: buildControls({
-          leftBrake: true,
-          rightBrake: true,
-        }, 2),
-      }),
-    )
+  it('switches into approach phase and exposes landing guidance in the approach scenario', () => {
+    const approach = createApproachScenarioSample()
+    const next = stepFlightState(approach.state, approach.input)
+
+    expect(next.flightPhase).toBe('approach')
+    expect(next.landingZoneDistanceMeters).not.toBeNull()
+    expect(next.landingApproachErrorDeg).not.toBeNull()
+  })
+
+  it('uses flare timing to improve touchdown quality in the flare scenario', () => {
+    const lateFlare = createFlareScenarioSample('late')
+    const timedFlare = createFlareScenarioSample('timed')
+    const noFlare = stepFlightState(lateFlare.state, lateFlare.input)
+    const flared = stepFlightState(timedFlare.state, timedFlare.input)
 
     expect(flared.flareEffectiveness).toBeGreaterThan(noFlare.flareEffectiveness)
     expect(flared.flightPhase === 'landed' || flared.flightPhase === 'crashed').toBe(true)

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { GooglePhotorealisticWorld } from './GooglePhotorealisticWorld'
+import { FLIGHT_SCENARIOS } from '../../flight/scenarios'
 import { HOME_ROW_CONTROL_GUIDE } from '../../sim/home-row-controls'
 import { FLIGHT_SITES } from '../../sim/site-data'
 import { useSimulationSession } from '../../sim/useSimulationSession'
@@ -18,6 +19,15 @@ function getWorldSetupCopy(worldMode: GoogleWorldMode) {
 
 function formatTypingKey(key: string) {
   return key === ' ' ? 'SPACE' : key.toUpperCase()
+}
+
+function formatSignedNumber(value: number, digits = 1) {
+  const sign = value > 0 ? '+' : ''
+  return `${sign}${value.toFixed(digits)}`
+}
+
+function formatInteger(value: number) {
+  return `${Math.round(value)}`
 }
 
 function isTextEntryTarget(target: EventTarget | null) {
@@ -53,8 +63,10 @@ export function SimulatorApp() {
     flightState,
     missionView,
     resetRun,
+    selectScenario,
     selectSite,
     selectedCountry,
+    selectedScenario,
     selectedSite,
     terrainHeightMeters,
     typingMetrics,
@@ -79,6 +91,87 @@ export function SimulatorApp() {
     activeFactIndex >= 0
       ? selectedCountry.facts[activeFactIndex] ?? selectedCountry.facts[0] ?? ''
       : ''
+  const tuningScenarios = FLIGHT_SCENARIOS.map((scenario) => {
+    let metric = ''
+
+    switch (scenario.id) {
+      case 'ridge-pass':
+        metric = `${formatSignedNumber(flightState.ridgeLiftMetersPerSecond)} m/s ridge`
+        break
+      case 'thermal-climb':
+        metric = `${formatSignedNumber(flightState.thermalLiftMetersPerSecond)} m/s thermal`
+        break
+      case 'glide-transition':
+        metric = `${formatInteger(flightState.airspeedKmh)} km/h · stall ${Math.round(
+          flightState.stallWarning * 100,
+        )}%`
+        break
+      case 'approach':
+        metric = `${formatInteger(flightState.groundClearanceMeters)} m clear · ${Math.round(
+          flightState.bankDeg,
+        )}° bank`
+        break
+      case 'flare':
+        metric = `${Math.round(flightState.flareEffectiveness * 100)}% flare · ${flightState.landingRating}`
+        break
+    }
+
+    return {
+      ...scenario,
+      isSelected: scenario.id === selectedScenario?.id,
+      metric,
+    }
+  })
+  const tuningTelemetry = [
+    {
+      label: 'Scenario',
+      value: selectedScenario?.name ?? 'Free Flight',
+      detail:
+        selectedScenario?.setup ??
+        `Site-led sandbox over ${selectedSite.name}, ${selectedSite.country}.`,
+    },
+    {
+      label: 'Energy',
+      value: `${formatInteger(flightState.airspeedKmh)} / ${formatInteger(
+        flightState.groundSpeedKmh,
+      )} km/h`,
+      detail: `${flightState.verticalSpeedMetersPerSecond.toFixed(1)} m/s vario`,
+    },
+    {
+      label: 'Lift stack',
+      value: `${flightState.ridgeLiftMetersPerSecond.toFixed(1)} + ${flightState.thermalLiftMetersPerSecond.toFixed(1)} m/s`,
+      detail: `${flightState.debug.turbulenceLiftMetersPerSecond.toFixed(1)} m/s gust · ${flightState.debug.flareLiftMetersPerSecond.toFixed(1)} m/s flare`,
+    },
+    {
+      label: 'Sink budget',
+      value: `${flightState.debug.totalSinkMetersPerSecond.toFixed(1)} m/s`,
+      detail: `base ${flightState.debug.baseSinkMetersPerSecond.toFixed(1)} · turn ${flightState.debug.inducedTurnSinkMetersPerSecond.toFixed(1)} · brake ${flightState.debug.brakeSinkMetersPerSecond.toFixed(1)} · stall ${flightState.debug.stallSinkMetersPerSecond.toFixed(1)} · air ${flightState.airMassSinkMetersPerSecond.toFixed(1)}`,
+    },
+    {
+      label: 'Control',
+      value: `${Math.round(flightState.bankDeg)}° bank · ${Math.round(
+        flightState.turnRateDegPerSecond,
+      )}°/s`,
+      detail: `${Math.round(flightState.stallWarning * 100)}% stall · ${Math.round(
+        flightState.flareEffectiveness * 100,
+      )}% flare`,
+    },
+    {
+      label: 'Landing read',
+      value: `${flightState.landingRating}`,
+      detail:
+        flightState.landingZoneDistanceMeters == null
+          ? 'no landing fix'
+          : `${Math.round(flightState.landingZoneDistanceMeters)} m to zone · ${Math.round(
+              flightState.landingApproachErrorDeg ?? 0,
+            )}° off`,
+    },
+    {
+      label: 'Route',
+      value: `${Math.round(flightState.distanceKm * 10) / 10} km`,
+      detail: `${Math.round(worldMetrics.travelProgress * 100)}% loop · ${selectedCountry.route}`,
+    },
+  ] as const
   const handleWorldStatusChange = useCallback(
     (status: 'config-needed' | 'loading' | 'ready' | 'error', detail?: string) => {
       setWorldStatus(status)
@@ -149,6 +242,77 @@ export function SimulatorApp() {
               <span>{worldDetail}</span>
             </div>
           </header>
+
+          <section className="sim-panel sim-panel--wide sim-panel--lab">
+            <div className="sim-panel__header sim-panel__header--stacked">
+              <p className="sim-panel__eyebrow">Tuning Lab</p>
+              <h2>Prototype flight bench</h2>
+              <p className="sim-panel__body sim-panel__body--tight">
+                Load named scenarios into the live simulator, then compare how the
+                same model handles ridge lift, thermals, glide transitions, approach,
+                and flare timing.
+              </p>
+            </div>
+
+            <div className="sim-lab-meta">
+              <span>{selectedScenario?.name ?? 'Free Flight'}</span>
+              <span>{selectedSite.name}</span>
+              <span>{selectedWorldMode.label}</span>
+              <span>{flightState.flightPhase}</span>
+              <span>{Math.round(worldMetrics.windSpeedKmh)} km/h wind</span>
+            </div>
+
+            <div className="sim-lab-toolbar">
+              <button
+                className={`sim-button sim-button--ghost${
+                  selectedScenario == null ? ' is-active' : ''
+                }`}
+                onClick={() => selectScenario(null)}
+                type="button"
+              >
+                Free Flight
+              </button>
+              <button className="sim-button" onClick={resetRun} type="button">
+                {selectedScenario ? `Reload ${selectedScenario.name}` : 'Reset Run'}
+              </button>
+              <span>
+                {selectedScenario?.recommendedInputs ??
+                  'Use the launch selector for open-ended site flying.'}
+              </span>
+            </div>
+
+            <div className="sim-lab-layout">
+              <div className="sim-lab-scenarios">
+                {tuningScenarios.map((scenario) => (
+                  <button
+                    key={scenario.id}
+                    className={`sim-lab-card${scenario.isSelected ? ' is-active' : ''}`}
+                    onClick={() => selectScenario(scenario.id)}
+                    type="button"
+                  >
+                    <div className="sim-lab-card__header">
+                      <p>{scenario.name}</p>
+                      <strong>{scenario.metric}</strong>
+                    </div>
+                    <span>{scenario.summary}</span>
+                    <span className="sim-lab-card__detail">
+                      {scenario.keyOutputs.join(' · ')}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="sim-lab-telemetry">
+                {tuningTelemetry.map((metric) => (
+                  <article key={metric.label} className="sim-lab-telemetry__item">
+                    <strong>{metric.value}</strong>
+                    <span>{metric.label}</span>
+                    <p>{metric.detail}</p>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </section>
 
           <main className="sim-grid">
             <section className="sim-panel sim-panel--wide">
@@ -445,9 +609,13 @@ export function SimulatorApp() {
               </div>
               <div className="sim-actions">
                 <button className="sim-button" onClick={resetRun} type="button">
-                  Reset Run
+                  {selectedScenario ? `Reload ${selectedScenario.name}` : 'Reset Run'}
                 </button>
-                <span>Type the lesson, work the air, and tap `R` to relaunch.</span>
+                <span>
+                  {selectedScenario
+                    ? 'Scenario mode keeps the launch, atmosphere, and flight state replayable.'
+                    : 'Type the lesson, work the air, and tap `R` to relaunch.'}
+                </span>
               </div>
             </section>
           </main>
@@ -455,12 +623,18 @@ export function SimulatorApp() {
       ) : (
         <section className="sim-flight-hud">
           <div className="sim-flight-hud__top">
-            <div className="sim-flight-card">
+            <div className="sim-flight-card sim-flight-card--hero">
               <p className="sim-kicker">Flight View</p>
               <h2>
                 {selectedSite.name}, {selectedSite.country}
               </h2>
               <p>{selectedCountry.route}</p>
+              <div className="sim-flight-card__meta">
+                <span>{selectedScenario?.name ?? 'Free Flight'}</span>
+                <span>{selectedWorldMode.label}</span>
+                <span>{activityMode.name}</span>
+                <span>{worldMetrics.windLabel}</span>
+              </div>
             </div>
             <div className={`sim-status sim-status--${worldStatus} sim-status--compact`}>
               <strong>
@@ -470,6 +644,16 @@ export function SimulatorApp() {
               </strong>
               <span>{worldDetail}</span>
             </div>
+          </div>
+
+          <div className="sim-flight-hud__analysis">
+            {tuningTelemetry.map((metric) => (
+              <article key={metric.label} className="sim-flight-insight">
+                <strong>{metric.value}</strong>
+                <span>{metric.label}</span>
+                <p>{metric.detail}</p>
+              </article>
+            ))}
           </div>
 
           <div className="sim-flight-hud__strip">
@@ -486,20 +670,24 @@ export function SimulatorApp() {
               <span>vario</span>
             </article>
             <article className="sim-flight-chip">
-              <strong>{typingMetrics.accuracy}%</strong>
-              <span>accuracy</span>
+              <strong>{Math.round(flightState.bankDeg)}°</strong>
+              <span>bank</span>
             </article>
             <article className="sim-flight-chip">
-              <strong>{flightState.flightPhase}</strong>
-              <span>phase</span>
+              <strong>{Math.round(flightState.turnRateDegPerSecond)}°/s</strong>
+              <span>turn</span>
             </article>
             <article className="sim-flight-chip">
               <strong>{Math.round((flightState.stallWarning ?? 0) * 100)}%</strong>
               <span>stall</span>
             </article>
             <article className="sim-flight-chip">
-              <strong>{formatTypingKey(typingMetrics.currentKey)}</strong>
-              <span>{typingMetrics.activeFinger.label}</span>
+              <strong>{flightState.flightPhase}</strong>
+              <span>phase</span>
+            </article>
+            <article className="sim-flight-chip">
+              <strong>{typingMetrics.accuracy}%</strong>
+              <span>typing</span>
             </article>
           </div>
 
@@ -508,6 +696,13 @@ export function SimulatorApp() {
               <p className="sim-kicker">Objective</p>
               <h2>{missionView.objectiveTitle}</h2>
               <p>{missionView.objectiveSummary}</p>
+              <div className="sim-flight-card__meta">
+                <span>{missionView.previewLabel}</span>
+                <span>
+                  {missionView.clearedCount}/{missionView.totalCount} cleared
+                </span>
+                <span>{lastTypingResult?.completedLesson ? 'Lesson cleared' : 'Live run'}</span>
+              </div>
             </div>
             <div className="sim-flight-controls">
               {HOME_ROW_CONTROL_GUIDE.map((control) => {

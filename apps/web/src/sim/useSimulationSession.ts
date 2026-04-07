@@ -26,6 +26,11 @@ import {
 } from '../lib/world-engine'
 import { deriveFlightAssistProfile } from './flight-assist'
 import {
+  createFlightScenarioSession,
+  getFlightScenario,
+  type FlightScenarioId,
+} from '../flight/scenarios'
+import {
   createInitialFlightState,
   resetFlightStateForSite,
   stepFlightState,
@@ -39,9 +44,12 @@ import {
   type HomeRowControlState,
 } from './home-row-controls'
 import { getFlightSite, type FlightSiteId } from './site-data'
+import type { AmbientAirState } from '../flight/types'
 
 type SimulationSessionState = {
   siteId: FlightSiteId
+  scenarioId: FlightScenarioId | null
+  scenarioAtmosphere: AmbientAirState | null
   activityModeId: ActivityModeId
   terrainHeightMeters: number | null
   controls: HomeRowControlState
@@ -88,23 +96,50 @@ function getTypingCountryId(countryId: string): CountryId {
   return matchedCountry?.id ?? COUNTRIES[0].id
 }
 
+type CreateSimulationSessionOptions = {
+  siteId: FlightSiteId
+  terrainHeightMeters?: number | null
+  scenarioId?: FlightScenarioId | null
+}
+
 function createSimulationSessionState(
-  siteId: FlightSiteId,
-  terrainHeightMeters?: number | null,
+  options: CreateSimulationSessionOptions,
 ): SimulationSessionState {
-  const site = getFlightSite(siteId)
+  const scenarioId = options.scenarioId ?? null
+  const scenarioSession =
+    scenarioId == null
+      ? null
+      : createFlightScenarioSession(scenarioId, options.terrainHeightMeters)
+  const site = scenarioSession?.site ?? getFlightSite(options.siteId)
   const countryId = getTypingCountryId(site.countryId)
   const activityModeId: ActivityModeId = 'paragliding'
-  const initialTerrainHeightMeters = terrainHeightMeters ?? site.launchAltitudeMeters
+  const initialTerrainHeightMeters =
+    scenarioSession?.terrainHeightMeters ??
+    options.terrainHeightMeters ??
+    site.launchAltitudeMeters
+  const scenarioAtmosphere = scenarioSession?.atmosphere ?? null
 
   return {
-    siteId,
+    siteId: site.id,
+    scenarioId,
+    scenarioAtmosphere,
     activityModeId,
     terrainHeightMeters: initialTerrainHeightMeters,
     controls: DEFAULT_HOME_ROW_CONTROLS,
-    flightState: createInitialFlightState(site, initialTerrainHeightMeters),
+    flightState:
+      scenarioSession?.flightState ??
+      createInitialFlightState(site, initialTerrainHeightMeters),
     typingSession: createInitialTypingSession(countryId),
-    worldSession: createInitialWorldSession(activityModeId, countryId),
+    worldSession: {
+      ...createInitialWorldSession(activityModeId, countryId),
+      ...(scenarioAtmosphere
+        ? {
+            windHeading: scenarioAtmosphere.windHeadingDeg,
+            windSpeedKmh: scenarioAtmosphere.windSpeedKmh,
+            turbulence: scenarioAtmosphere.turbulence,
+          }
+        : {}),
+    },
     missionSession: createInitialMissionSession(activityModeId, countryId),
     lastTypingResult: null,
   }
@@ -120,10 +155,11 @@ function getRouteProgress(distanceKm: number, routeLengthKm: number) {
 
 export function useSimulationSession(initialSiteId: FlightSiteId) {
   const [session, setSession] = useState<SimulationSessionState>(() =>
-    createSimulationSessionState(initialSiteId),
+    createSimulationSessionState({ siteId: initialSiteId }),
   )
   const terrainBootstrapRef = useRef(false)
   const selectedSite = getFlightSite(session.siteId)
+  const selectedScenario = getFlightScenario(session.scenarioId)
   const selectedCountry = getCountryContent(getTypingCountryId(selectedSite.countryId))
   const activityMode = getActivityMode(session.activityModeId)
   const typingMetrics = deriveTypingMetrics(session.typingSession)
@@ -144,16 +180,38 @@ export function useSimulationSession(initialSiteId: FlightSiteId) {
 
   const selectSite = useCallback((siteId: FlightSiteId) => {
     terrainBootstrapRef.current = false
-    setSession(createSimulationSessionState(siteId))
+    setSession(
+      createSimulationSessionState({
+        siteId,
+        scenarioId: null,
+      }),
+    )
+  }, [])
+
+  const selectScenario = useCallback((scenarioId: FlightScenarioId | null) => {
+    terrainBootstrapRef.current = false
+    setSession((currentSession) => {
+      const scenario = getFlightScenario(scenarioId)
+
+      return createSimulationSessionState({
+        siteId: scenario?.siteId ?? currentSession.siteId,
+        terrainHeightMeters:
+          scenario == null || scenario.siteId === currentSession.siteId
+            ? currentSession.terrainHeightMeters
+            : undefined,
+        scenarioId,
+      })
+    })
   }, [])
 
   const resetRun = useCallback(() => {
     terrainBootstrapRef.current = true
     setSession((currentSession) =>
-      createSimulationSessionState(
-        currentSession.siteId,
-        currentSession.terrainHeightMeters,
-      ),
+      createSimulationSessionState({
+        siteId: currentSession.siteId,
+        terrainHeightMeters: currentSession.terrainHeightMeters,
+        scenarioId: currentSession.scenarioId,
+      }),
     )
   }, [])
 
@@ -172,6 +230,28 @@ export function useSimulationSession(initialSiteId: FlightSiteId) {
 
       if (!terrainBootstrapRef.current) {
         terrainBootstrapRef.current = true
+
+        if (currentSession.scenarioId) {
+          const scenarioSession = createFlightScenarioSession(
+            currentSession.scenarioId,
+            nextTerrainHeightMeters,
+          )
+
+          return {
+            ...currentSession,
+            siteId: scenarioSession.site.id,
+            terrainHeightMeters: nextTerrainHeightMeters,
+            scenarioAtmosphere: scenarioSession.atmosphere,
+            flightState: scenarioSession.flightState,
+            worldSession: {
+              ...currentSession.worldSession,
+              windHeading: scenarioSession.atmosphere.windHeadingDeg,
+              windSpeedKmh: scenarioSession.atmosphere.windSpeedKmh,
+              turbulence: scenarioSession.atmosphere.turbulence,
+            },
+          }
+        }
+
         return {
           ...currentSession,
           terrainHeightMeters: nextTerrainHeightMeters,
@@ -244,11 +324,33 @@ export function useSimulationSession(initialSiteId: FlightSiteId) {
         streak: currentSession.typingSession.streak,
         mistakes: currentSession.typingSession.mistakes,
       })
+      const effectiveAtmosphere = currentSession.scenarioAtmosphere
+        ? {
+            windHeadingDeg: currentSession.scenarioAtmosphere.windHeadingDeg,
+            windSpeedKmh: currentSession.scenarioAtmosphere.windSpeedKmh,
+            turbulence: currentSession.scenarioAtmosphere.turbulence,
+          }
+        : {
+            windHeadingDeg: tickedWorldSession.windHeading,
+            windSpeedKmh: tickedWorldSession.windSpeedKmh,
+            turbulence: tickedWorldSession.turbulence,
+          }
+      const atmosphereAlignedWorldSession = currentSession.scenarioAtmosphere
+        ? {
+            ...tickedWorldSession,
+            windHeading: currentSession.scenarioAtmosphere.windHeadingDeg,
+            windSpeedKmh: currentSession.scenarioAtmosphere.windSpeedKmh,
+            turbulence: currentSession.scenarioAtmosphere.turbulence,
+          }
+        : tickedWorldSession
       const nextControls = stepHomeRowControls(
         currentSession.controls,
         deltaMs / 1000,
       )
-      const nextWorldMetrics = deriveWorldMetrics(tickedWorldSession, nextActivityMode)
+      const nextWorldMetrics = deriveWorldMetrics(
+        atmosphereAlignedWorldSession,
+        nextActivityMode,
+      )
       const nextFlightAssist = deriveFlightAssistProfile({
         activityMode: nextActivityMode,
         typingMetrics: nextTypingMetrics,
@@ -260,16 +362,12 @@ export function useSimulationSession(initialSiteId: FlightSiteId) {
         controls: nextControls,
         site,
         terrainHeightMeters: currentSession.terrainHeightMeters,
-        atmosphere: {
-          windHeadingDeg: tickedWorldSession.windHeading,
-          windSpeedKmh: tickedWorldSession.windSpeedKmh,
-          turbulence: tickedWorldSession.turbulence,
-        },
+        atmosphere: effectiveAtmosphere,
         assist: nextFlightAssist,
       })
       const routeProgress = getRouteProgress(nextFlightState.distanceKm, site.routeLengthKm)
       const nextWorldSession = {
-        ...tickedWorldSession,
+        ...atmosphereAlignedWorldSession,
         distanceKm: nextFlightState.distanceKm,
         travelProgress: routeProgress,
       }
@@ -345,8 +443,10 @@ export function useSimulationSession(initialSiteId: FlightSiteId) {
     flightState: session.flightState,
     missionView,
     resetRun,
+    selectScenario,
     selectSite,
     selectedCountry,
+    selectedScenario,
     selectedSite,
     terrainHeightMeters: session.terrainHeightMeters,
     typingMetrics,
