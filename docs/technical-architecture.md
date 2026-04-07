@@ -2,15 +2,27 @@
 
 ## Recommendation
 
-Build the project as a web-first game with a staged renderer strategy.
+Build the project in stages with a hard separation between:
 
-### Foundation
+- the current prototype sandbox
+- a portable flight simulation core
+- a future production renderer aimed at a beautiful full-render flight experience
 
-- Client: React 19, TypeScript, Vite
-- Prototype rendering: DOM and CSS for the earliest loop tests
-- Production world rendering spike: CesiumJS-based globe or terrain rendering
-- Typing engine: local deterministic lesson runner with per-key telemetry
-- Radio prototype: browser speech synthesis over curated country facts
+The current repo should be treated as a fast iteration environment, not as proof that the final engine or renderer has already been chosen.
+
+### Current prototype foundation
+
+- Client sandbox: React 19, TypeScript, Vite
+- Current world spike: CesiumJS plus geospatial tiles for terrain, camera, and scale validation
+- Flight simulation: deterministic local loop that can be tuned outside the renderer
+- Content and mission layer: lightweight local data and UI for iteration
+
+### Target production direction
+
+- Renderer target: Gaussian-splat-style or equivalent high-fidelity full-render world presentation
+- Camera target: strong third-person chase camera with readable canopy motion and terrain speed
+- Atmosphere target: layered air-mass model for wind, ridge lift, lee sink, thermals, turbulence, and landing energy
+- Product priority: make solo flight feel and world presence convincing before expanding social or platform systems
 
 ### Later production systems
 
@@ -20,15 +32,21 @@ Build the project as a web-first game with a staged renderer strategy.
 
 ## Why this stack
 
-### React and Vite
+### Current web sandbox
 
-They are fast to iterate with, easy to host, and good for combining a game HUD with product surfaces like onboarding, profile, and lesson management.
+React and Vite are still useful for quick iteration on HUD, telemetry, tuning controls, and trying out world presentation ideas. They are not the final visual target. They are the fastest place to separate what belongs to simulation code from what belongs to a renderer or engine.
 
-### Cesium-style rendering for the world layer
+### Renderer direction
 
-The project needs a camera that can travel over real geography, not only a flat slippy map. A 3D geospatial renderer is a better fit than trying to force a traditional map widget into a flight game.
+The project now wants more than a map-backed prototype. It wants terrain presence, atmospheric scale, and a rendering style that can plausibly feel like a true full-render flight sim instead of a HUD floating over a map surface.
 
-Current Google Maps Tile API documentation explicitly supports Photorealistic 3D Tiles with CesiumJS and other 3D renderers, which makes a Cesium-based spike the most defensible way to test real-world flight. Official sources:
+That shifts the direction toward a Gaussian-splat-style or equivalent high-fidelity renderer. The current Cesium path is still valuable, but only as a near-term terrain and camera validation spike.
+
+### Cesium spike rationale
+
+The project still needs a camera that can travel over real geography, not only a flat slippy map. A 3D geospatial renderer remains a defensible way to test real-world flight before the final renderer is locked.
+
+Current Google Maps Tile API documentation explicitly supports Photorealistic 3D Tiles with CesiumJS and other 3D renderers, which makes a Cesium-based spike a practical short-term validation path. Official sources:
 
 - [Photorealistic 3D Tiles](https://developers.google.com/maps/documentation/tile/3d-tiles)
 - [Work with a 3D Tiles renderer](https://developers.google.com/maps/documentation/tile/use-renderer)
@@ -54,14 +72,14 @@ Relevant official sources:
 Practical implication:
 
 - prototype the gameplay loop without coupling it to a specific map vendor
-- run a short geospatial spike with CesiumJS plus Google 3D Tiles or an alternative imagery provider
-- decide the long-term map provider only after validating cost, controls, attribution, and game-specific restrictions
+- use the current Cesium path to validate scale, terrain readability, camera motion, and prototype data plumbing
+- decide the long-term renderer and map provider only after validating visual quality, controls, attribution, spend, and game-specific restrictions
 
 ## Gameplay systems
 
-### Typing engine
+### Input and skill layer
 
-Needs to own:
+If the typing layer remains in the product, it should own:
 
 - lesson queues
 - key normalization
@@ -70,18 +88,61 @@ Needs to own:
 - adaptive difficulty rules
 - scoring and telemetry
 
-This should remain deterministic and testable outside the renderer.
+This system should remain deterministic and testable outside the renderer, and it should not define the core flight-physics architecture.
 
 ### Flight model
 
-The earliest version can be intentionally simple:
+The flight model should be built as a tunable simulation layer, not as a giant attempt at full CFD.
 
-- accuracy raises lift
-- streaks improve glide efficiency
-- mistakes introduce drag and wobble
-- rhythm matters more than twitch speed
+### First-pass simulation scope
 
-Later, wind, thermals, descent, and route hazards can sit on top of the typing model.
+V1 should own:
+
+- wing state: position, heading, bank, pitch, airspeed, turn rate, sink rate, glide state, and ground clearance
+- pilot inputs: left and right brake, symmetric brake, weight shift, speed bar, and flare intent
+- air mass contributions: base sink, ridge lift, lee sink, thermal core lift, thermal edge decay, ring sink, wind advection, and turbulence gusts
+- flight phases: launch, soaring, approach, flare, landed, and crashed
+- deterministic stepping and replayable tests outside the renderer
+
+Calibration priority:
+
+- readable, believable, stable flight feel
+- pilot intuition over strict CFD purity
+- clear separation between aerodynamic tuning and world rendering
+
+### Physics research shortlist
+
+Do not try to absorb every physics reference at once. The useful shortlist is:
+
+- glide polar, brake response, and canopy energy retention
+- ridge lift, lee sink, and rotor behavior near terrain
+- thermals, convection, and drift with changing wind
+- wind gradient, shear, turbulence, and boundary-layer effects
+- flare timing, landing energy management, and ground effect
+
+### Physics reference workflow
+
+Large external references should be mined selectively. The local `references/the_well` clone is useful as a research source, but only for narrow questions.
+
+Most relevant starting points:
+
+- `rayleigh_benard`: convection structure, buoyancy-driven circulation, and thermal-cell intuition
+- `shear_flow`: shear-layer behavior, instability, and velocity-field structure
+- `planetswe`: large-scale flow behavior, periodic forcing, and terrain-scale atmospheric patterns
+
+Usage policy:
+
+- start from dataset README and docs, not full data ingestion
+- extract analogies and parameter intuition, not real-time solver code
+- only go deeper into generation code or data layout when a specific mechanic needs it
+
+Later layers can add:
+
+- altitude-dependent wind gradient
+- stronger rotor and terrain shadowing
+- asymmetric canopy responses and surge
+- site-specific weather presets
+- broader failure and recovery cases once the baseline feels trustworthy
 
 ### Country radio
 
@@ -111,24 +172,23 @@ LiveKit’s current room and track model is a strong fit for the audio layer bec
 ### Phase 0: prove the fantasy
 
 - build a single-screen prototype
-- validate that typing actually feels like flight
-- confirm the visual tone
+- validate that the wing feels good in the air
+- confirm the visual tone and sense of scale
 
-### Phase 1: single-player vertical slice
+### Phase 1: single-player flight vertical slice
 
-- clean HUD and onboarding
-- country selection
-- route progression
-- results screen
-- persistent progress
+- launch, soaring, approach, flare, and landing loop
+- tuned first site with readable wind and lift behavior
+- clean HUD, telemetry, and replayable tuning scenarios
 
-### Phase 2: world renderer spike
+### Phase 2: full-render world spike
 
-- integrate CesiumJS or equivalent
-- test route cameras, terrain readability, and performance
-- validate map licensing, attribution, and spend model
+- evaluate Gaussian-splat-style or equivalent render approaches
+- keep Cesium or similar geospatial tooling as a comparison spike, not an assumption
+- test chase cameras, terrain readability, atmosphere depth, and performance
+- validate map licensing, attribution, and spend model where relevant
 
-### Phase 3: country radio system
+### Phase 3: world content systems
 
 - authored scripts
 - better TTS
@@ -143,7 +203,8 @@ LiveKit’s current room and track model is a strong fit for the audio layer bec
 
 ## Immediate next engineering moves
 
-1. Keep the current repo focused on the single-player loop.
-2. Extract the typing engine into pure logic once the prototype interaction feels right.
-3. Run a separate Cesium spike before any large content production.
-4. Delay full multiplayer until single-player retention feels strong.
+1. Keep the current repo focused on solo flight feel and renderer separation.
+2. Continue extracting flight and atmosphere code into pure, testable modules.
+3. Write a V1 physics tuning sheet around a small number of known scenarios: ridge pass, thermal climb, glide transition, approach, and flare.
+4. Use `references/the_well` selectively, starting with `rayleigh_benard`, `shear_flow`, and `planetswe`.
+5. Delay large social and backend expansion until the solo flight loop and renderer direction are credible.
