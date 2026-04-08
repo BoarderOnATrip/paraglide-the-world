@@ -41,13 +41,13 @@ struct FParaglideFlightTuning
 		float CoordinationAuthorityGain = 0.42f;
 		float StallAuthorityPenalty = 0.38f;
 		float ControlAuthorityFloor = 0.62f;
-		float ControlAuthorityCeiling = 1.16f;
+		float ControlAuthorityCeiling = 1.22f;
 		float GustRollMagnitudeDeg = 4.4f;
-		float BankLimitDeg = 46.0f;
+		float BankLimitDeg = 56.0f;
 		float LoadFactorCosFloor = 0.74f;
 		float InducedTurnSinkMultiplier = 0.95f;
 		float StallTurnRatePenalty = 0.24f;
-		float StallSinkMultiplier = 3.3f;
+		float StallSinkMultiplier = 4.0f;
 		float FlareStallPenalty = 0.3f;
 	} Stability;
 
@@ -105,15 +105,36 @@ struct FParaglideFlightTuning
 	struct FAttitude
 	{
 		float TrimPitchDeg = -6.0f;
-		float SpeedBarPitchGainDeg = 3.8f;
+		float SpeedBarPitchGainDeg = 5.4f;
 		float SymmetricBrakePitchLossDeg = 8.4f;
 		float StallPitchGainDeg = 8.8f;
 		float FlarePitchGainDeg = 6.2f;
 		float TurbulencePitchGainDeg = 1.4f;
-		float MinPitchDeg = -22.0f;
+		float MinPitchDeg = -34.0f;
 		float MaxPitchDeg = 12.0f;
 		float PitchResponseRate = 40.0f;
 	} Attitude;
+
+	struct FManeuvers
+	{
+		float DiveBuildRate = 1.8f;
+		float DiveRecoveryRate = 1.25f;
+		float DiveAirspeedGainKmh = 16.0f;
+		float DivePitchGainDeg = 16.0f;
+		float DiveSinkMultiplier = 1.45f;
+		float DiveTurnRateBonus = 0.32f;
+		float AcroBankLimitDeg = 112.0f;
+		float AcroBankBonusDeg = 32.0f;
+		float SpiralSinkMultiplier = 2.6f;
+		float TumbleTriggerStall = 0.82f;
+		float TumbleTriggerAsymmetry = 0.58f;
+		float TumbleBuildRate = 2.4f;
+		float TumbleRecoveryRate = 1.6f;
+		float TumbleRollRateDegPerSecond = 520.0f;
+		float TumblePitchLimitDeg = 74.0f;
+		float TumbleHeadingRateDegPerSecond = 155.0f;
+		float TumbleSinkMultiplier = 5.8f;
+	} Maneuvers;
 
 	static const FParaglideFlightTuning& Get()
 	{

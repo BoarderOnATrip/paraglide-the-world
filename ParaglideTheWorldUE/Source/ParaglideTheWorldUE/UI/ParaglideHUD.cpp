@@ -50,11 +50,12 @@ void AParaglideHUD::DrawHUD()
 	const FString ScenarioLine = FormatScenarioHint(ScenarioName, ScenarioSummary);
 	const FString ControlsLine = TEXT("A/F/J/;/Space fly | 1-5 scenarios | R reset | Tab HUD");
 	const FString SinkLine = FString::Printf(
-		TEXT("Sink base %.2f | turn %.2f | brake %.2f | stall %.2f"),
+		TEXT("Sink base %.2f | turn %.2f | dive %.2f | spiral %.2f | tumble %.2f"),
 		FlightState.Debug.BaseSinkMetersPerSecond,
 		FlightState.Debug.InducedTurnSinkMetersPerSecond,
-		FlightState.Debug.BrakeSinkMetersPerSecond,
-		FlightState.Debug.StallSinkMetersPerSecond);
+		FlightState.Debug.DiveSinkMetersPerSecond,
+		FlightState.Debug.SpiralSinkMetersPerSecond,
+		FlightState.Debug.TumbleSinkMetersPerSecond);
 	const FString StateLine = FString::Printf(
 		TEXT("Phase %s | Vario %.1f m/s | Air %.0f km/h | Ground %.0f km/h"),
 		*FlightPhaseToString(),
@@ -62,14 +63,16 @@ void AParaglideHUD::DrawHUD()
 		FlightState.AirspeedKmh,
 		FlightState.GroundSpeedKmh);
 	const FString EnergyLine = FString::Printf(
-		TEXT("AGL %.0f m | Stall %.0f%% | Flare %.0f%% | Turn %.0f deg/s"),
+		TEXT("AGL %.0f m | Stall %.0f%% | Dive %.0f%% | Tumble %.0f%% | G %.2f"),
 		FlightState.GroundClearanceMeters,
 		FlightState.StallWarning * 100.0f,
-		FlightState.FlareEffectiveness * 100.0f,
-		FlightState.TurnRateDegPerSecond);
+		FlightState.DiveEnergy * 100.0f,
+		FlightState.TumbleAmount * 100.0f,
+		FlightState.LoadFactor);
 	const FString LandingLine = FString::Printf(
-		TEXT("Landing %s | Distance %s | Error %.0f deg"),
+		TEXT("Landing %s | Flare %.0f%% | Distance %s | Error %.0f deg"),
 		*LandingRatingToString(),
+		FlightState.FlareEffectiveness * 100.0f,
 		*FormatDistanceMeters(FlightState.LandingZoneDistanceMeters),
 		FMath::Max(FlightState.LandingApproachErrorDeg, 0.0f));
 

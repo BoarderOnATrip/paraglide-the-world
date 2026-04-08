@@ -59,6 +59,15 @@ struct FParaglideFlightDebugTelemetry
 	float StallSinkMetersPerSecond = 0.0f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	float DiveSinkMetersPerSecond = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	float SpiralSinkMetersPerSecond = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	float TumbleSinkMetersPerSecond = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
 	float TurbulenceLiftMetersPerSecond = 0.0f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
@@ -126,6 +135,18 @@ struct FParaglideFlightState
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
 	float FlareEffectiveness = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	float DiveEnergy = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	float TumbleAmount = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	float SpinRateDegPerSecond = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	float LoadFactor = 1.0f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
 	float LandingZoneDistanceMeters = -1.0f;

@@ -104,6 +104,21 @@ namespace
 		return FMath::RadiansToDegrees((9.81f * FMath::Tan(BankRadians)) / AirspeedMetersPerSecond);
 	}
 
+	float GetSignedTurnInput(const FDerivedControls& Controls, const float FallbackValue)
+	{
+		if (!FMath::IsNearlyZero(Controls.BrakeDifferential, KINDA_SMALL_NUMBER))
+		{
+			return FMath::Sign(Controls.BrakeDifferential);
+		}
+
+		if (!FMath::IsNearlyZero(Controls.WeightShift, KINDA_SMALL_NUMBER))
+		{
+			return FMath::Sign(Controls.WeightShift);
+		}
+
+		return FMath::IsNearlyZero(FallbackValue, KINDA_SMALL_NUMBER) ? 1.0f : FMath::Sign(FallbackValue);
+	}
+
 	EParaglideFlightPhase GetFlightPhase(
 		const float ElapsedSeconds,
 		const float GroundClearanceMeters,
@@ -147,12 +162,12 @@ namespace
 		const float RightBrakeTarget = Controls.bRightBrakePressed ? 1.0f : 0.0f;
 		const float WeightTarget = (Controls.bWeightRightPressed ? 1.0f : 0.0f) - (Controls.bWeightLeftPressed ? 1.0f : 0.0f);
 		const float SpeedBarTarget = Controls.bSpeedBarPressed ? 1.0f : 0.0f;
-		const float BrakeStep = DeltaSeconds * 2.8f;
-		const float BrakeReleaseStep = DeltaSeconds * 4.8f;
-		const float WeightStep = DeltaSeconds * 4.2f;
-		const float WeightReleaseStep = DeltaSeconds * 6.0f;
-		const float SpeedBarStep = DeltaSeconds * 2.0f;
-		const float SpeedBarReleaseStep = DeltaSeconds * 3.0f;
+		const float BrakeStep = DeltaSeconds * 4.4f;
+		const float BrakeReleaseStep = DeltaSeconds * 6.2f;
+		const float WeightStep = DeltaSeconds * 6.4f;
+		const float WeightReleaseStep = DeltaSeconds * 7.2f;
+		const float SpeedBarStep = DeltaSeconds * 3.0f;
+		const float SpeedBarReleaseStep = DeltaSeconds * 3.8f;
 
 		Controls.LeftBrakeTravel = FMath::Clamp(
 			ApproachValue(Controls.LeftBrakeTravel, LeftBrakeTarget, Controls.bLeftBrakePressed ? BrakeStep : BrakeReleaseStep),
@@ -673,6 +688,13 @@ FParaglideFlightState UParaglideFlightComponent::StepFlightState(const FParaglid
 		NextState.PitchDeg = ApproachValue(CurrentState.PitchDeg, 0.0f, DeltaSeconds * 12.0f);
 		NextState.TurnRateDegPerSecond = 0.0f;
 		NextState.ElapsedSeconds = CurrentState.ElapsedSeconds + DeltaSeconds;
+		NextState.DiveEnergy = 0.0f;
+		NextState.TumbleAmount = 0.0f;
+		NextState.SpinRateDegPerSecond = 0.0f;
+		NextState.LoadFactor = 1.0f;
+		NextState.Debug.DiveSinkMetersPerSecond = 0.0f;
+		NextState.Debug.SpiralSinkMetersPerSecond = 0.0f;
+		NextState.Debug.TumbleSinkMetersPerSecond = 0.0f;
 		NextState.Debug.TurbulenceLiftMetersPerSecond = 0.0f;
 		NextState.Debug.FlareLiftMetersPerSecond = 0.0f;
 		return NextState;
@@ -690,6 +712,39 @@ FParaglideFlightState UParaglideFlightComponent::StepFlightState(const FParaglid
 		AssistProfile.RecoveryAssist * Tuning.Stability.RecoveryAssistStallRelief,
 		0.0f,
 		1.0f);
+	const float AsymmetryInput = FMath::Clamp(
+		FMath::Max(FMath::Abs(DerivedControls.BrakeDifferential), FMath::Abs(DerivedControls.WeightShift) * 0.85f),
+		0.0f,
+		1.0f);
+	const float SignedTurnInput = GetSignedTurnInput(DerivedControls, CurrentState.SpinRateDegPerSecond);
+	const float DiveDrive = FMath::Clamp(
+		DerivedControls.SpeedBarTravel * 0.9f +
+		FMath::Clamp((FMath::Abs(CurrentState.BankDeg) - 35.0f) / 55.0f, 0.0f, 1.0f) * 0.45f +
+		FMath::Clamp((CurrentState.AirspeedKmh - Tuning.BaselineWing.TrimAirspeedKmh) / 18.0f, 0.0f, 1.0f) * 0.25f -
+		DerivedControls.SymmetricBrake * 0.55f,
+		0.0f,
+		1.0f);
+	const float DiveEnergy = FMath::Clamp(
+		CurrentState.DiveEnergy +
+		(DiveDrive * Tuning.Maneuvers.DiveBuildRate - (1.0f - DiveDrive) * Tuning.Maneuvers.DiveRecoveryRate) * DeltaSeconds,
+		0.0f,
+		1.0f);
+	const float TumbleTrigger = FMath::Clamp(
+		(StallWarning - Tuning.Maneuvers.TumbleTriggerStall) / (1.0f - Tuning.Maneuvers.TumbleTriggerStall),
+		0.0f,
+		1.0f) * FMath::Clamp(
+			(AsymmetryInput - Tuning.Maneuvers.TumbleTriggerAsymmetry) / (1.0f - Tuning.Maneuvers.TumbleTriggerAsymmetry),
+			0.0f,
+			1.0f);
+	const float TumbleAmount = FMath::Clamp(
+		CurrentState.TumbleAmount +
+		(TumbleTrigger * Tuning.Maneuvers.TumbleBuildRate - (1.0f - TumbleTrigger) * Tuning.Maneuvers.TumbleRecoveryRate) * DeltaSeconds,
+		0.0f,
+		1.0f);
+	const float TargetSpinRateDegPerSecond = TumbleAmount > KINDA_SMALL_NUMBER
+		? SignedTurnInput * (Tuning.Maneuvers.TumbleRollRateDegPerSecond * (0.35f + TumbleAmount * 0.65f))
+		: 0.0f;
+	const float SpinRateDegPerSecond = ApproachValue(CurrentState.SpinRateDegPerSecond, TargetSpinRateDegPerSecond, DeltaSeconds * 680.0f);
 	const float ControlAuthority = FMath::Clamp(
 		AssistProfile.InputResponsiveness +
 		AssistProfile.CoordinationAssist * Tuning.Stability.CoordinationAuthorityGain -
@@ -699,18 +754,31 @@ FParaglideFlightState UParaglideFlightComponent::StepFlightState(const FParaglid
 	const float GustBankDeg =
 		FMath::Sin(CurrentState.ElapsedSeconds * 1.9f + CurrentState.HeadingDeg / 23.0f) *
 		EffectiveTurbulence * Tuning.Stability.GustRollMagnitudeDeg;
+	const float ManeuverBankLimitDeg = FMath::Lerp(
+		Tuning.Stability.BankLimitDeg,
+		Tuning.Maneuvers.AcroBankLimitDeg,
+		FMath::Max(DiveEnergy * 0.9f, TumbleAmount));
+	const float CommandedBankDeg =
+		(DerivedControls.BrakeDifferential * (Tuning.Controls.BrakeToRollDeg + DiveEnergy * Tuning.Maneuvers.AcroBankBonusDeg) +
+			DerivedControls.WeightShift * (Tuning.Controls.WeightShiftAuthorityDeg + DiveEnergy * (Tuning.Maneuvers.AcroBankBonusDeg * 0.45f))) *
+		ControlAuthority;
+	const float TumbleBankDeg = TumbleAmount * SignedTurnInput * (64.0f + TumbleAmount * 48.0f);
 	const float TargetBankDeg = FMath::Clamp(
-		(DerivedControls.BrakeDifferential * Tuning.Controls.BrakeToRollDeg +
-			DerivedControls.WeightShift * Tuning.Controls.WeightShiftAuthorityDeg) * ControlAuthority +
-		GustBankDeg,
-		-Tuning.Stability.BankLimitDeg,
-		Tuning.Stability.BankLimitDeg);
+		CommandedBankDeg + GustBankDeg + TumbleBankDeg,
+		-ManeuverBankLimitDeg,
+		ManeuverBankLimitDeg);
 	const float BankDeg = ApproachValue(
 		CurrentState.BankDeg,
 		TargetBankDeg,
-		DeltaSeconds * (Tuning.Controls.BankResponseRate + AssistProfile.CoordinationAssist * Tuning.Controls.CoordinationBankResponseGain));
-	const float TurnRateDegPerSecond = GetTurnRateDegPerSecond(BankDeg, AirspeedKmh, Tuning) * (1.0f - StallWarning * Tuning.Stability.StallTurnRatePenalty);
-	const float HeadingDeg = WrapDegrees(CurrentState.HeadingDeg + TurnRateDegPerSecond * DeltaSeconds);
+		DeltaSeconds * (Tuning.Controls.BankResponseRate + AssistProfile.CoordinationAssist * Tuning.Controls.CoordinationBankResponseGain + DiveEnergy * 28.0f + TumbleAmount * 18.0f));
+	const float BaseTurnRateDegPerSecond =
+		GetTurnRateDegPerSecond(BankDeg, AirspeedKmh, Tuning) *
+		(1.0f + DiveEnergy * Tuning.Maneuvers.DiveTurnRateBonus) *
+		(1.0f - StallWarning * Tuning.Stability.StallTurnRatePenalty);
+	const float TurnRateDegPerSecond = BaseTurnRateDegPerSecond + SpinRateDegPerSecond * TumbleAmount * 0.22f;
+	const float HeadingDeg = WrapDegrees(
+		CurrentState.HeadingDeg +
+		(TurnRateDegPerSecond + TumbleAmount * SignedTurnInput * Tuning.Maneuvers.TumbleHeadingRateDegPerSecond * 0.5f) * DeltaSeconds);
 
 	float RidgeLiftMetersPerSecond = 0.0f;
 	float LeeSinkMetersPerSecond = 0.0f;
@@ -726,10 +794,16 @@ FParaglideFlightState UParaglideFlightComponent::StepFlightState(const FParaglid
 	const float BankRadians = FMath::DegreesToRadians(BankDeg);
 	const float LoadFactor = 1.0f / FMath::Max(FMath::Cos(BankRadians), Tuning.Stability.LoadFactorCosFloor);
 	const float InducedTurnSinkMetersPerSecond = FMath::Max(0.0f, LoadFactor - 1.0f) * Tuning.Stability.InducedTurnSinkMultiplier;
+	const float DiveSinkMetersPerSecond = DiveEnergy * Tuning.Maneuvers.DiveSinkMultiplier;
+	const float SpiralSinkMetersPerSecond =
+		FMath::Clamp((FMath::Abs(BankDeg) - 58.0f) / 42.0f, 0.0f, 1.0f) *
+		(0.8f + DiveEnergy) *
+		Tuning.Maneuvers.SpiralSinkMultiplier;
 	const float BrakeSinkMetersPerSecond =
 		DerivedControls.SymmetricBrake * Tuning.Controls.BrakeSinkLinearMetersPerSecond +
 		FMath::Square(DerivedControls.SymmetricBrake) * Tuning.Controls.BrakeSinkQuadraticMetersPerSecond;
 	const float StallSinkMetersPerSecond = FMath::Square(StallWarning) * Tuning.Stability.StallSinkMultiplier;
+	const float TumbleSinkMetersPerSecond = TumbleAmount * Tuning.Maneuvers.TumbleSinkMultiplier;
 	const float LowAltitudeFactor = FMath::Clamp(
 		(Tuning.PhaseModel.FlareArmingHeightMeters - CurrentState.GroundClearanceMeters) / Tuning.PhaseModel.FlareArmingHeightMeters,
 		0.0f,
@@ -754,14 +828,23 @@ FParaglideFlightState UParaglideFlightComponent::StepFlightState(const FParaglid
 			1.0f) *
 		Tuning.Landing.FlareDragMultiplierKmh;
 
-	AirspeedKmh = FMath::Clamp(AirspeedKmh - FlareDragKmh, Tuning.BaselineWing.FlareMinAirspeedKmh, Tuning.BaselineWing.MaxAirspeedKmh);
+	AirspeedKmh = FMath::Clamp(
+		AirspeedKmh +
+		DiveEnergy * Tuning.Maneuvers.DiveAirspeedGainKmh -
+		TumbleAmount * (4.0f + StallWarning * 6.0f) -
+		FlareDragKmh,
+		Tuning.BaselineWing.FlareMinAirspeedKmh,
+		Tuning.BaselineWing.MaxAirspeedKmh);
 
 	const float AirMassSinkMetersPerSecond = LeeSinkMetersPerSecond + ThermalSinkMetersPerSecond;
 	const float TotalSinkMetersPerSecond =
 		BaseSinkMetersPerSecond +
 		InducedTurnSinkMetersPerSecond +
+		DiveSinkMetersPerSecond +
+		SpiralSinkMetersPerSecond +
 		BrakeSinkMetersPerSecond +
 		StallSinkMetersPerSecond +
+		TumbleSinkMetersPerSecond +
 		AirMassSinkMetersPerSecond;
 	const float VerticalSpeedMetersPerSecond =
 		ThermalLiftMetersPerSecond +
@@ -769,16 +852,24 @@ FParaglideFlightState UParaglideFlightComponent::StepFlightState(const FParaglid
 		TurbulenceLiftMetersPerSecond +
 		FlareLiftMetersPerSecond -
 		TotalSinkMetersPerSecond;
+	const float DynamicMinPitchDeg = FMath::Lerp(Tuning.Attitude.MinPitchDeg, -Tuning.Maneuvers.TumblePitchLimitDeg, FMath::Max(DiveEnergy, TumbleAmount));
+	const float DynamicMaxPitchDeg = FMath::Lerp(Tuning.Attitude.MaxPitchDeg, Tuning.Maneuvers.TumblePitchLimitDeg * 0.8f, TumbleAmount);
+	const float TumblePitchOffsetDeg =
+		TumbleAmount *
+		FMath::Sin(CurrentState.ElapsedSeconds * 8.5f + (SpinRateDegPerSecond < 0.0f ? PI * 0.5f : -PI * 0.5f)) *
+		Tuning.Maneuvers.TumblePitchLimitDeg;
 	const float TargetPitchDeg = FMath::Clamp(
 		Tuning.Attitude.TrimPitchDeg +
 		DerivedControls.SpeedBarTravel * Tuning.Attitude.SpeedBarPitchGainDeg -
 		DerivedControls.SymmetricBrake * Tuning.Attitude.SymmetricBrakePitchLossDeg +
 		StallWarning * Tuning.Attitude.StallPitchGainDeg +
 		FlareEffectiveness * Tuning.Attitude.FlarePitchGainDeg -
-		EffectiveTurbulence * Tuning.Attitude.TurbulencePitchGainDeg,
-		Tuning.Attitude.MinPitchDeg,
-		Tuning.Attitude.MaxPitchDeg);
-	const float PitchDeg = ApproachValue(CurrentState.PitchDeg, TargetPitchDeg, DeltaSeconds * Tuning.Attitude.PitchResponseRate);
+		EffectiveTurbulence * Tuning.Attitude.TurbulencePitchGainDeg -
+		DiveEnergy * Tuning.Maneuvers.DivePitchGainDeg +
+		TumblePitchOffsetDeg,
+		DynamicMinPitchDeg,
+		DynamicMaxPitchDeg);
+	const float PitchDeg = ApproachValue(CurrentState.PitchDeg, TargetPitchDeg, DeltaSeconds * (Tuning.Attitude.PitchResponseRate + DiveEnergy * 18.0f + TumbleAmount * 12.0f));
 
 	const float HeadingRadians = FMath::DegreesToRadians(HeadingDeg);
 	const float WindHeadingRadians = FMath::DegreesToRadians(Atmosphere.WindHeadingDeg);
@@ -820,6 +911,10 @@ FParaglideFlightState UParaglideFlightComponent::StepFlightState(const FParaglid
 		NextState.TurnRateDegPerSecond = 0.0f;
 		NextState.StallWarning = StallWarning;
 		NextState.FlareEffectiveness = FlareEffectiveness;
+		NextState.DiveEnergy = DiveEnergy;
+		NextState.TumbleAmount = TumbleAmount;
+		NextState.SpinRateDegPerSecond = SpinRateDegPerSecond;
+		NextState.LoadFactor = LoadFactor;
 		NextState.LandingZoneDistanceMeters = LandingMetrics.bValid ? LandingMetrics.DistanceMeters : -1.0f;
 		NextState.LandingApproachErrorDeg = LandingMetrics.bValid ? LandingMetrics.ApproachErrorDeg : -1.0f;
 		NextState.LandingRating = LandingRating;
@@ -828,6 +923,9 @@ FParaglideFlightState UParaglideFlightComponent::StepFlightState(const FParaglid
 		NextState.Debug.InducedTurnSinkMetersPerSecond = InducedTurnSinkMetersPerSecond;
 		NextState.Debug.BrakeSinkMetersPerSecond = BrakeSinkMetersPerSecond;
 		NextState.Debug.StallSinkMetersPerSecond = StallSinkMetersPerSecond;
+		NextState.Debug.DiveSinkMetersPerSecond = DiveSinkMetersPerSecond;
+		NextState.Debug.SpiralSinkMetersPerSecond = SpiralSinkMetersPerSecond;
+		NextState.Debug.TumbleSinkMetersPerSecond = TumbleSinkMetersPerSecond;
 		NextState.Debug.TurbulenceLiftMetersPerSecond = TurbulenceLiftMetersPerSecond;
 		NextState.Debug.FlareLiftMetersPerSecond = FlareLiftMetersPerSecond;
 		NextState.Debug.TotalSinkMetersPerSecond = TotalSinkMetersPerSecond;
@@ -853,6 +951,10 @@ FParaglideFlightState UParaglideFlightComponent::StepFlightState(const FParaglid
 	NextState.TurnRateDegPerSecond = TurnRateDegPerSecond;
 	NextState.StallWarning = StallWarning;
 	NextState.FlareEffectiveness = FlareEffectiveness;
+	NextState.DiveEnergy = DiveEnergy;
+	NextState.TumbleAmount = TumbleAmount;
+	NextState.SpinRateDegPerSecond = SpinRateDegPerSecond;
+	NextState.LoadFactor = LoadFactor;
 	NextState.LandingZoneDistanceMeters = LandingMetrics.bValid ? LandingMetrics.DistanceMeters : -1.0f;
 	NextState.LandingApproachErrorDeg = LandingMetrics.bValid ? LandingMetrics.ApproachErrorDeg : -1.0f;
 	NextState.LandingRating = EParaglideLandingRating::None;
@@ -861,6 +963,9 @@ FParaglideFlightState UParaglideFlightComponent::StepFlightState(const FParaglid
 	NextState.Debug.InducedTurnSinkMetersPerSecond = InducedTurnSinkMetersPerSecond;
 	NextState.Debug.BrakeSinkMetersPerSecond = BrakeSinkMetersPerSecond;
 	NextState.Debug.StallSinkMetersPerSecond = StallSinkMetersPerSecond;
+	NextState.Debug.DiveSinkMetersPerSecond = DiveSinkMetersPerSecond;
+	NextState.Debug.SpiralSinkMetersPerSecond = SpiralSinkMetersPerSecond;
+	NextState.Debug.TumbleSinkMetersPerSecond = TumbleSinkMetersPerSecond;
 	NextState.Debug.TurbulenceLiftMetersPerSecond = TurbulenceLiftMetersPerSecond;
 	NextState.Debug.FlareLiftMetersPerSecond = FlareLiftMetersPerSecond;
 	NextState.Debug.TotalSinkMetersPerSecond = TotalSinkMetersPerSecond;
