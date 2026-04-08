@@ -4,6 +4,8 @@
 #include "GameFramework/GameModeBase.h"
 #include "ParaglideGameMode.generated.h"
 
+class AParaglidePrototypeWorld;
+
 UCLASS()
 class PARAGLIDETHEWORLDUE_API AParaglideGameMode : public AGameModeBase
 {
@@ -11,4 +13,14 @@ class PARAGLIDETHEWORLDUE_API AParaglideGameMode : public AGameModeBase
 
 public:
 	AParaglideGameMode();
+	virtual void StartPlay() override;
+
+private:
+	void SpawnPrototypeWorldIfNeeded();
+
+	UPROPERTY(EditDefaultsOnly, Category = "Paraglide|World")
+	TSubclassOf<AParaglidePrototypeWorld> PrototypeWorldClass;
+
+	UPROPERTY()
+	TObjectPtr<AParaglidePrototypeWorld> SpawnedPrototypeWorld;
 };
