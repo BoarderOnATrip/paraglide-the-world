@@ -4,3 +4,8 @@ dist
 .pnpm-store
 test-results
 references/the_well/
+ParaglideTheWorldUE/Binaries/
+ParaglideTheWorldUE/DerivedDataCache/
+ParaglideTheWorldUE/Intermediate/
+ParaglideTheWorldUE/Saved/
+ParaglideTheWorldUE/*.xcworkspace/
