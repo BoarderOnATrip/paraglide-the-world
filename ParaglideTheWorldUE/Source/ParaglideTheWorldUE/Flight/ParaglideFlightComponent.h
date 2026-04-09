@@ -17,11 +17,7 @@ public:
 	virtual void BeginPlay() override;
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
-	void SetWeightLeftPressed(bool bPressed);
-	void SetLeftBrakePressed(bool bPressed);
-	void SetRightBrakePressed(bool bPressed);
-	void SetWeightRightPressed(bool bPressed);
-	void SetSpeedBarPressed(bool bPressed);
+	void ApplyControlInputs(const FParaglideControlState& ControlState);
 
 	UFUNCTION(BlueprintCallable, Category = "Paraglide")
 	void ResetScenario();

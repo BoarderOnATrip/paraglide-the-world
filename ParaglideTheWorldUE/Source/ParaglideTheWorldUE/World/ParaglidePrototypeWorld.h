@@ -83,7 +83,13 @@ private:
 	void BuildThermals();
 	void BuildGates();
 	void BuildLabels();
+	void BuildCliffArticulation();
+	void BuildForestPatches();
+	void BuildClouds();
+	void BuildSkyMarkers();
 	void AddBoxInstance(UInstancedStaticMeshComponent* Component, const FVector& LocationMeters, const FVector& Scale, const FRotator& Rotation = FRotator::ZeroRotator) const;
+	void AddSphereInstance(UInstancedStaticMeshComponent* Component, const FVector& LocationMeters, const FVector& Scale, const FRotator& Rotation = FRotator::ZeroRotator) const;
+	void AddCylinderInstance(UInstancedStaticMeshComponent* Component, const FVector& LocationMeters, const FVector& Scale, const FRotator& Rotation = FRotator::ZeroRotator) const;
 	void AddTextLabel(UTextRenderComponent* LabelComponent, const FVector& LocationMeters, const FString& Text, const FLinearColor& Color) const;
 	FVector ToWorldLocation(const FVector& LocationMeters) const;
 
@@ -120,6 +126,30 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = "Paraglide")
 	TObjectPtr<UInstancedStaticMeshComponent> GateInstances;
+
+	UPROPERTY(VisibleAnywhere, Category = "Paraglide")
+	TObjectPtr<UInstancedStaticMeshComponent> CliffFaceInstances;
+
+	UPROPERTY(VisibleAnywhere, Category = "Paraglide")
+	TObjectPtr<UInstancedStaticMeshComponent> CliffSnowInstances;
+
+	UPROPERTY(VisibleAnywhere, Category = "Paraglide")
+	TObjectPtr<UInstancedStaticMeshComponent> TreeTrunkInstances;
+
+	UPROPERTY(VisibleAnywhere, Category = "Paraglide")
+	TObjectPtr<UInstancedStaticMeshComponent> TreeCanopyInstances;
+
+	UPROPERTY(VisibleAnywhere, Category = "Paraglide")
+	TObjectPtr<UInstancedStaticMeshComponent> CloudInstances;
+
+	UPROPERTY(VisibleAnywhere, Category = "Paraglide")
+	TObjectPtr<UInstancedStaticMeshComponent> WindMarkerInstances;
+
+	UPROPERTY(VisibleAnywhere, Category = "Paraglide")
+	TObjectPtr<UInstancedStaticMeshComponent> MeadowStripeInstances;
+
+	UPROPERTY(VisibleAnywhere, Category = "Paraglide")
+	TObjectPtr<UInstancedStaticMeshComponent> RockSpineInstances;
 
 	UPROPERTY(VisibleAnywhere, Category = "Paraglide")
 	TObjectPtr<UTextRenderComponent> LaunchLabel;

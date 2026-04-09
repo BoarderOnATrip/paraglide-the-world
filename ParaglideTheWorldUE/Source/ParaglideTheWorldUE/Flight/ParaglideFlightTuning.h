@@ -17,14 +17,21 @@ struct FParaglideFlightTuning
 
 	struct FControls
 	{
-		float SpeedBarAirspeedGainKmh = 10.5f;
+		float SpeedBarAirspeedGainKmh = 14.0f;
+		float FrontRiserAirspeedGainKmh = 9.0f;
 		float SymmetricBrakeAirspeedLossKmh = 12.5f;
 		float DeepBrakeAirspeedLossKmh = 5.5f;
+		float RearRiserAirspeedLossKmh = 4.2f;
 		float ResponsivenessAirspeedGainKmh = 4.0f;
+		float FrontRiserToRollDeg = 10.0f;
 		float BrakeToRollDeg = 28.0f;
+		float RearRiserToRollDeg = 14.0f;
 		float WeightShiftAuthorityDeg = 12.0f;
 		float BrakeSinkLinearMetersPerSecond = 0.42f;
 		float BrakeSinkQuadraticMetersPerSecond = 0.65f;
+		float RearRiserSinkLinearMetersPerSecond = 0.12f;
+		float RearRiserSinkQuadraticMetersPerSecond = 0.18f;
+		float RearRiserStallContribution = 0.16f;
 		float AirspeedResponseRate = 16.0f;
 		float BankResponseRate = 30.0f;
 		float CoordinationBankResponseGain = 34.0f;
@@ -62,9 +69,9 @@ struct FParaglideFlightTuning
 		float RidgeWindCap = 1.45f;
 		float DefaultThermalDriftFactor = 0.28f;
 		float ThermalCoreRadiusMultiplier = 0.35f;
-		float ThermalCoreBaseFraction = 0.7f;
-		float ThermalCoreCenteringBonus = 0.3f;
-		float ThermalEdgeLiftFraction = 0.72f;
+		float ThermalCoreBaseFraction = 0.78f;
+		float ThermalCoreCenteringBonus = 0.32f;
+		float ThermalEdgeLiftFraction = 0.88f;
 		float ThermalSinkRingRadiusMultiplier = 1.45f;
 		float TurbulencePrimaryMix = 0.62f;
 		float TurbulenceSecondaryMix = 0.38f;
@@ -105,8 +112,10 @@ struct FParaglideFlightTuning
 	struct FAttitude
 	{
 		float TrimPitchDeg = -6.0f;
-		float SpeedBarPitchGainDeg = 5.4f;
+		float SpeedBarPitchGainDeg = 7.2f;
+		float FrontRiserPitchDiveDeg = 9.4f;
 		float SymmetricBrakePitchLossDeg = 8.4f;
+		float RearRiserPitchGainDeg = 1.6f;
 		float StallPitchGainDeg = 8.8f;
 		float FlarePitchGainDeg = 6.2f;
 		float TurbulencePitchGainDeg = 1.4f;
@@ -114,6 +123,47 @@ struct FParaglideFlightTuning
 		float MaxPitchDeg = 12.0f;
 		float PitchResponseRate = 40.0f;
 	} Attitude;
+
+	struct FAirfoil
+	{
+		float TrimAngleOfAttackDeg = 6.4f;
+		float BrakeAngleOfAttackGainDeg = 8.2f;
+		float RearRiserAngleOfAttackGainDeg = 2.5f;
+		float FrontRiserAngleOfAttackLossDeg = 5.6f;
+		float SpeedBarAngleOfAttackLossDeg = 4.8f;
+		float BasePressure = 0.68f;
+		float AirspeedPressureGain = 0.34f;
+		float InflationPressureGain = 0.22f;
+		float FrontRiserPressurePenalty = 0.22f;
+		float SpeedBarPressurePenalty = 0.16f;
+		float LowAoAPressurePenalty = 0.28f;
+		float HighAoAPressurePenalty = 0.12f;
+		float CollapsePressureThreshold = 0.42f;
+		float CollapsePressureRange = 0.24f;
+		float CollapseBuildRate = 1.1f;
+		float CollapseRecoveryRate = 0.72f;
+		float CollapseAuthorityPenalty = 0.55f;
+		float CollapseSinkMetersPerSecond = 2.4f;
+		float CollapseBankGainDeg = 32.0f;
+		float CollapsePitchLossDeg = 8.0f;
+		float SurgeResponseRate = 16.0f;
+		float FrontRiserSurgeGainDeg = 18.0f;
+		float SpeedBarSurgeGainDeg = 10.0f;
+		float BrakeSurgeDampingDeg = 18.0f;
+	} Airfoil;
+
+	struct FLaunch
+	{
+		float FrontRiserInflationGain = 0.72f;
+		float AirspeedInflationGain = 0.34f;
+		float BrakeInflationPenalty = 0.20f;
+		float InflationBuildRate = 1.8f;
+		float InflationDecayRate = 1.2f;
+		float LaunchLiftMultiplier = 2.2f;
+		float TakeoffPressureThreshold = 0.72f;
+		float FreeFlightSwitchHeightMeters = 8.0f;
+		float FrontRiserGroundRunSpeedGainKmh = 8.0f;
+	} Launch;
 
 	struct FManeuvers
 	{

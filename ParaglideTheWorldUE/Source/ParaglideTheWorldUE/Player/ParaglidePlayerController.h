@@ -31,21 +31,40 @@ private:
 	bool bParaglideHUDVisible = true;
 
 	UPROPERTY(VisibleInstanceOnly, Category="Paraglide")
+	bool bLeftOuterHomePressed = false;
+
+	UPROPERTY(VisibleInstanceOnly, Category="Paraglide")
+	bool bRightOuterHomePressed = false;
+
+	UPROPERTY(VisibleInstanceOnly, Category="Paraglide")
 	FParaglideControlState ControlState;
 
 	void PushControlState() const;
 	AParaglideFlightPawn* GetParaglideFlightPawn() const;
+	void SetInputFlag(bool& InputFlag, bool bPressed);
 
 	void HandleWeightLeftPressed();
 	void HandleWeightLeftReleased();
-	void HandleLeftBrakePressed();
-	void HandleLeftBrakeReleased();
-	void HandleRightBrakePressed();
-	void HandleRightBrakeReleased();
+	void HandleLeftRearRiserPressed();
+	void HandleLeftRearRiserReleased();
+	void HandleLeftBrakePrimaryPressed();
+	void HandleLeftBrakePrimaryReleased();
+	void HandleLeftBrakeDeepPressed();
+	void HandleLeftBrakeDeepReleased();
+	void HandleSpeedBarStageOnePressed();
+	void HandleSpeedBarStageOneReleased();
+	void HandleSpeedBarStageTwoPressed();
+	void HandleSpeedBarStageTwoReleased();
+	void HandleSpeedBarFallbackPressed();
+	void HandleSpeedBarFallbackReleased();
+	void HandleRightBrakeDeepPressed();
+	void HandleRightBrakeDeepReleased();
+	void HandleRightBrakePrimaryPressed();
+	void HandleRightBrakePrimaryReleased();
+	void HandleRightRearRiserPressed();
+	void HandleRightRearRiserReleased();
 	void HandleWeightRightPressed();
 	void HandleWeightRightReleased();
-	void HandleSpeedBarPressed();
-	void HandleSpeedBarReleased();
 	void HandleResetPressed();
 	void HandleHudTogglePressed();
 	void HandleScenario1Pressed();

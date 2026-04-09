@@ -137,6 +137,24 @@ struct FParaglideFlightState
 	float FlareEffectiveness = 0.0f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	float WingInflation = 1.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	float CanopyPressure = 1.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	float AngleOfAttackDeg = 6.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	float LeftCollapseAmount = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	float RightCollapseAmount = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	float WingSurgeDeg = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
 	float DiveEnergy = 0.0f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
@@ -185,7 +203,73 @@ struct FParaglideControlState
 	bool bSpeedBarPressed = false;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	bool bLeftFrontRiserPressed = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	bool bLeftRearRiserPressed = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	bool bLeftBrakePrimaryPressed = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	bool bLeftBrakeDeepPressed = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	bool bRightBrakeDeepPressed = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	bool bRightBrakePrimaryPressed = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	bool bRightRearRiserPressed = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	bool bRightFrontRiserPressed = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	bool bSpeedBarStageOnePressed = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	bool bSpeedBarStageTwoPressed = false;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	float LeftFrontRiserTarget = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	float LeftRearRiserTarget = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	float LeftBrakeTarget = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	float RightFrontRiserTarget = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	float RightRearRiserTarget = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	float RightBrakeTarget = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	float WeightShiftTarget = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	float SpeedBarTarget = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	float LeftFrontRiserTravel = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	float LeftRearRiserTravel = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
 	float LeftBrakeTravel = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	float RightFrontRiserTravel = 0.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	float RightRearRiserTravel = 0.0f;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
 	float RightBrakeTravel = 0.0f;

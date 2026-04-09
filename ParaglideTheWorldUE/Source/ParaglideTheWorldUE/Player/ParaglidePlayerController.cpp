@@ -6,6 +6,15 @@
 #include "Components/InputComponent.h"
 #include "InputCoreTypes.h"
 
+namespace
+{
+	constexpr float RearRiserCommand = 1.0f;
+	constexpr float BrakePrimaryStage = 0.58f;
+	constexpr float BrakeDeepStage = 0.42f;
+	constexpr float SpeedBarStageOne = 0.45f;
+	constexpr float SpeedBarStageTwo = 0.55f;
+}
+
 AParaglidePlayerController::AParaglidePlayerController()
 {
 	bAutoManageActiveCameraTarget = false;
@@ -29,14 +38,24 @@ void AParaglidePlayerController::SetupInputComponent()
 
 	InputComponent->BindKey(EKeys::A, IE_Pressed, this, &ThisClass::HandleWeightLeftPressed);
 	InputComponent->BindKey(EKeys::A, IE_Released, this, &ThisClass::HandleWeightLeftReleased);
-	InputComponent->BindKey(EKeys::F, IE_Pressed, this, &ThisClass::HandleLeftBrakePressed);
-	InputComponent->BindKey(EKeys::F, IE_Released, this, &ThisClass::HandleLeftBrakeReleased);
-	InputComponent->BindKey(EKeys::J, IE_Pressed, this, &ThisClass::HandleRightBrakePressed);
-	InputComponent->BindKey(EKeys::J, IE_Released, this, &ThisClass::HandleRightBrakeReleased);
+	InputComponent->BindKey(EKeys::S, IE_Pressed, this, &ThisClass::HandleLeftRearRiserPressed);
+	InputComponent->BindKey(EKeys::S, IE_Released, this, &ThisClass::HandleLeftRearRiserReleased);
+	InputComponent->BindKey(EKeys::D, IE_Pressed, this, &ThisClass::HandleLeftBrakePrimaryPressed);
+	InputComponent->BindKey(EKeys::D, IE_Released, this, &ThisClass::HandleLeftBrakePrimaryReleased);
+	InputComponent->BindKey(EKeys::F, IE_Pressed, this, &ThisClass::HandleLeftBrakeDeepPressed);
+	InputComponent->BindKey(EKeys::F, IE_Released, this, &ThisClass::HandleLeftBrakeDeepReleased);
+	InputComponent->BindKey(EKeys::SpaceBar, IE_Pressed, this, &ThisClass::HandleSpeedBarFallbackPressed);
+	InputComponent->BindKey(EKeys::SpaceBar, IE_Released, this, &ThisClass::HandleSpeedBarFallbackReleased);
+	InputComponent->BindKey(EKeys::J, IE_Pressed, this, &ThisClass::HandleRightBrakeDeepPressed);
+	InputComponent->BindKey(EKeys::J, IE_Released, this, &ThisClass::HandleRightBrakeDeepReleased);
+	InputComponent->BindKey(EKeys::K, IE_Pressed, this, &ThisClass::HandleRightBrakePrimaryPressed);
+	InputComponent->BindKey(EKeys::K, IE_Released, this, &ThisClass::HandleRightBrakePrimaryReleased);
+	InputComponent->BindKey(EKeys::L, IE_Pressed, this, &ThisClass::HandleRightRearRiserPressed);
+	InputComponent->BindKey(EKeys::L, IE_Released, this, &ThisClass::HandleRightRearRiserReleased);
 	InputComponent->BindKey(EKeys::Semicolon, IE_Pressed, this, &ThisClass::HandleWeightRightPressed);
 	InputComponent->BindKey(EKeys::Semicolon, IE_Released, this, &ThisClass::HandleWeightRightReleased);
-	InputComponent->BindKey(EKeys::SpaceBar, IE_Pressed, this, &ThisClass::HandleSpeedBarPressed);
-	InputComponent->BindKey(EKeys::SpaceBar, IE_Released, this, &ThisClass::HandleSpeedBarReleased);
+	InputComponent->BindKey(EKeys::Apostrophe, IE_Pressed, this, &ThisClass::HandleWeightRightPressed);
+	InputComponent->BindKey(EKeys::Apostrophe, IE_Released, this, &ThisClass::HandleWeightRightReleased);
 	InputComponent->BindKey(EKeys::R, IE_Pressed, this, &ThisClass::HandleResetPressed);
 	InputComponent->BindKey(EKeys::Tab, IE_Pressed, this, &ThisClass::HandleHudTogglePressed);
 	InputComponent->BindKey(EKeys::One, IE_Pressed, this, &ThisClass::HandleScenario1Pressed);
@@ -88,92 +107,189 @@ AParaglideFlightPawn* AParaglidePlayerController::GetParaglideFlightPawn() const
 	return Cast<AParaglideFlightPawn>(GetPawn());
 }
 
+void AParaglidePlayerController::SetInputFlag(bool& InputFlag, const bool bPressed)
+{
+	InputFlag = bPressed;
+	UpdateDerivedControlState();
+	PushControlState();
+}
+
 void AParaglidePlayerController::UpdateDerivedControlState()
 {
-	ControlState.LeftBrakeTravel = ControlState.bLeftBrakePressed ? 1.0f : 0.0f;
-	ControlState.RightBrakeTravel = ControlState.bRightBrakePressed ? 1.0f : 0.0f;
-	ControlState.SpeedBarTravel = ControlState.bSpeedBarPressed ? 1.0f : 0.0f;
+	const AParaglideFlightPawn* FlightPawn = GetParaglideFlightPawn();
+	const FParaglideFlightState FlightState = FlightPawn ? FlightPawn->GetFlightState() : FParaglideFlightState {};
+	const bool bUseFrontRisers =
+		FlightState.FlightPhase == EParaglideFlightPhase::Launch ||
+		(FlightState.GroundClearanceMeters < 6.0f && FlightState.WingInflation < 0.95f);
+
+	ControlState.bLeftFrontRiserPressed = bUseFrontRisers && bLeftOuterHomePressed;
+	ControlState.bRightFrontRiserPressed = bUseFrontRisers && bRightOuterHomePressed;
+	ControlState.bWeightLeftPressed = !bUseFrontRisers && bLeftOuterHomePressed;
+	ControlState.bWeightRightPressed = !bUseFrontRisers && bRightOuterHomePressed;
+	ControlState.bLeftBrakePressed =
+		ControlState.bLeftBrakePrimaryPressed ||
+		ControlState.bLeftBrakeDeepPressed;
+	ControlState.bRightBrakePressed =
+		ControlState.bRightBrakePrimaryPressed ||
+		ControlState.bRightBrakeDeepPressed;
+	ControlState.bSpeedBarPressed =
+		ControlState.bSpeedBarStageOnePressed ||
+		ControlState.bSpeedBarStageTwoPressed;
+
+	ControlState.LeftFrontRiserTarget = ControlState.bLeftFrontRiserPressed ? RearRiserCommand : 0.0f;
+	ControlState.LeftRearRiserTarget = ControlState.bLeftRearRiserPressed ? RearRiserCommand : 0.0f;
+	ControlState.LeftBrakeTarget = FMath::Clamp(
+		(ControlState.bLeftBrakePrimaryPressed ? BrakePrimaryStage : 0.0f) +
+		(ControlState.bLeftBrakeDeepPressed ? BrakeDeepStage : 0.0f),
+		0.0f,
+		1.0f);
+	ControlState.RightFrontRiserTarget = ControlState.bRightFrontRiserPressed ? RearRiserCommand : 0.0f;
+	ControlState.RightRearRiserTarget = ControlState.bRightRearRiserPressed ? RearRiserCommand : 0.0f;
+	ControlState.RightBrakeTarget = FMath::Clamp(
+		(ControlState.bRightBrakePrimaryPressed ? BrakePrimaryStage : 0.0f) +
+		(ControlState.bRightBrakeDeepPressed ? BrakeDeepStage : 0.0f),
+		0.0f,
+		1.0f);
+	ControlState.SpeedBarTarget = FMath::Clamp(
+		(ControlState.bSpeedBarStageOnePressed ? SpeedBarStageOne : 0.0f) +
+		(ControlState.bSpeedBarStageTwoPressed ? SpeedBarStageTwo : 0.0f),
+		0.0f,
+		1.0f);
 
 	if (ControlState.bWeightLeftPressed && !ControlState.bWeightRightPressed)
 	{
-		ControlState.WeightShiftPosition = -1.0f;
+		ControlState.WeightShiftTarget = -1.0f;
 	}
 	else if (ControlState.bWeightRightPressed && !ControlState.bWeightLeftPressed)
 	{
-		ControlState.WeightShiftPosition = 1.0f;
+		ControlState.WeightShiftTarget = 1.0f;
 	}
 	else
 	{
-		ControlState.WeightShiftPosition = 0.0f;
+		ControlState.WeightShiftTarget = 0.0f;
 	}
 }
 
 void AParaglidePlayerController::HandleWeightLeftPressed()
 {
-	ControlState.bWeightLeftPressed = true;
+	bLeftOuterHomePressed = true;
 	UpdateDerivedControlState();
 	PushControlState();
 }
 
 void AParaglidePlayerController::HandleWeightLeftReleased()
 {
-	ControlState.bWeightLeftPressed = false;
+	bLeftOuterHomePressed = false;
 	UpdateDerivedControlState();
 	PushControlState();
 }
 
-void AParaglidePlayerController::HandleLeftBrakePressed()
+void AParaglidePlayerController::HandleLeftRearRiserPressed()
 {
-	ControlState.bLeftBrakePressed = true;
+	SetInputFlag(ControlState.bLeftRearRiserPressed, true);
+}
+
+void AParaglidePlayerController::HandleLeftRearRiserReleased()
+{
+	SetInputFlag(ControlState.bLeftRearRiserPressed, false);
+}
+
+void AParaglidePlayerController::HandleLeftBrakePrimaryPressed()
+{
+	SetInputFlag(ControlState.bLeftBrakePrimaryPressed, true);
+}
+
+void AParaglidePlayerController::HandleLeftBrakePrimaryReleased()
+{
+	SetInputFlag(ControlState.bLeftBrakePrimaryPressed, false);
+}
+
+void AParaglidePlayerController::HandleLeftBrakeDeepPressed()
+{
+	SetInputFlag(ControlState.bLeftBrakeDeepPressed, true);
+}
+
+void AParaglidePlayerController::HandleLeftBrakeDeepReleased()
+{
+	SetInputFlag(ControlState.bLeftBrakeDeepPressed, false);
+}
+
+void AParaglidePlayerController::HandleSpeedBarStageOnePressed()
+{
+	SetInputFlag(ControlState.bSpeedBarStageOnePressed, true);
+}
+
+void AParaglidePlayerController::HandleSpeedBarStageOneReleased()
+{
+	SetInputFlag(ControlState.bSpeedBarStageOnePressed, false);
+}
+
+void AParaglidePlayerController::HandleSpeedBarStageTwoPressed()
+{
+	SetInputFlag(ControlState.bSpeedBarStageTwoPressed, true);
+}
+
+void AParaglidePlayerController::HandleSpeedBarStageTwoReleased()
+{
+	SetInputFlag(ControlState.bSpeedBarStageTwoPressed, false);
+}
+
+void AParaglidePlayerController::HandleSpeedBarFallbackPressed()
+{
+	ControlState.bSpeedBarStageOnePressed = true;
+	ControlState.bSpeedBarStageTwoPressed = true;
 	UpdateDerivedControlState();
 	PushControlState();
 }
 
-void AParaglidePlayerController::HandleLeftBrakeReleased()
+void AParaglidePlayerController::HandleSpeedBarFallbackReleased()
 {
-	ControlState.bLeftBrakePressed = false;
+	ControlState.bSpeedBarStageOnePressed = false;
+	ControlState.bSpeedBarStageTwoPressed = false;
 	UpdateDerivedControlState();
 	PushControlState();
 }
 
-void AParaglidePlayerController::HandleRightBrakePressed()
+void AParaglidePlayerController::HandleRightBrakePrimaryPressed()
 {
-	ControlState.bRightBrakePressed = true;
-	UpdateDerivedControlState();
-	PushControlState();
+	SetInputFlag(ControlState.bRightBrakePrimaryPressed, true);
 }
 
-void AParaglidePlayerController::HandleRightBrakeReleased()
+void AParaglidePlayerController::HandleRightBrakePrimaryReleased()
 {
-	ControlState.bRightBrakePressed = false;
-	UpdateDerivedControlState();
-	PushControlState();
+	SetInputFlag(ControlState.bRightBrakePrimaryPressed, false);
+}
+
+void AParaglidePlayerController::HandleRightRearRiserPressed()
+{
+	SetInputFlag(ControlState.bRightRearRiserPressed, true);
+}
+
+void AParaglidePlayerController::HandleRightRearRiserReleased()
+{
+	SetInputFlag(ControlState.bRightRearRiserPressed, false);
+}
+
+void AParaglidePlayerController::HandleRightBrakeDeepPressed()
+{
+	SetInputFlag(ControlState.bRightBrakeDeepPressed, true);
+}
+
+void AParaglidePlayerController::HandleRightBrakeDeepReleased()
+{
+	SetInputFlag(ControlState.bRightBrakeDeepPressed, false);
 }
 
 void AParaglidePlayerController::HandleWeightRightPressed()
 {
-	ControlState.bWeightRightPressed = true;
+	bRightOuterHomePressed = true;
 	UpdateDerivedControlState();
 	PushControlState();
 }
 
 void AParaglidePlayerController::HandleWeightRightReleased()
 {
-	ControlState.bWeightRightPressed = false;
-	UpdateDerivedControlState();
-	PushControlState();
-}
-
-void AParaglidePlayerController::HandleSpeedBarPressed()
-{
-	ControlState.bSpeedBarPressed = true;
-	UpdateDerivedControlState();
-	PushControlState();
-}
-
-void AParaglidePlayerController::HandleSpeedBarReleased()
-{
-	ControlState.bSpeedBarPressed = false;
+	bRightOuterHomePressed = false;
 	UpdateDerivedControlState();
 	PushControlState();
 }

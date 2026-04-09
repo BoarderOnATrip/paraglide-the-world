@@ -11,9 +11,17 @@ namespace
 {
 	struct FDerivedControls
 	{
+		float LeftFrontRiserTravel = 0.0f;
+		float LeftRearRiserTravel = 0.0f;
 		float LeftBrakeTravel = 0.0f;
+		float RightFrontRiserTravel = 0.0f;
+		float RightRearRiserTravel = 0.0f;
 		float RightBrakeTravel = 0.0f;
+		float SymmetricFrontRiser = 0.0f;
+		float SymmetricRearRiser = 0.0f;
 		float SymmetricBrake = 0.0f;
+		float FrontRiserDifferential = 0.0f;
+		float RearRiserDifferential = 0.0f;
 		float BrakeDifferential = 0.0f;
 		float WeightShift = 0.0f;
 		float SpeedBarTravel = 0.0f;
@@ -84,8 +92,10 @@ namespace
 		const float TargetAirspeed =
 			Tuning.BaselineWing.TrimAirspeedKmh +
 			Controls.SpeedBarTravel * Tuning.Controls.SpeedBarAirspeedGainKmh -
+			Controls.SymmetricRearRiser * Tuning.Controls.RearRiserAirspeedLossKmh -
 			Controls.SymmetricBrake * Tuning.Controls.SymmetricBrakeAirspeedLossKmh -
 			FMath::Square(Controls.SymmetricBrake) * Tuning.Controls.DeepBrakeAirspeedLossKmh +
+			Controls.SymmetricFrontRiser * Tuning.Controls.FrontRiserAirspeedGainKmh +
 			(Assist.InputResponsiveness - 0.9f) * Tuning.Controls.ResponsivenessAirspeedGainKmh;
 
 		return FMath::Clamp(
@@ -111,6 +121,16 @@ namespace
 			return FMath::Sign(Controls.BrakeDifferential);
 		}
 
+		if (!FMath::IsNearlyZero(Controls.RearRiserDifferential, KINDA_SMALL_NUMBER))
+		{
+			return FMath::Sign(Controls.RearRiserDifferential);
+		}
+
+		if (!FMath::IsNearlyZero(Controls.FrontRiserDifferential, KINDA_SMALL_NUMBER))
+		{
+			return FMath::Sign(Controls.FrontRiserDifferential);
+		}
+
 		if (!FMath::IsNearlyZero(Controls.WeightShift, KINDA_SMALL_NUMBER))
 		{
 			return FMath::Sign(Controls.WeightShift);
@@ -120,15 +140,20 @@ namespace
 	}
 
 	EParaglideFlightPhase GetFlightPhase(
+		const EParaglideFlightPhase CurrentPhase,
 		const float ElapsedSeconds,
 		const float GroundClearanceMeters,
+		const float WingInflation,
 		const float FlareEffectiveness,
 		const FParaglideFlightTuning& Tuning)
 	{
-		EParaglideFlightPhase FlightPhase =
-			ElapsedSeconds < Tuning.PhaseModel.LaunchDurationSeconds
-			? EParaglideFlightPhase::Launch
-			: EParaglideFlightPhase::Soaring;
+		EParaglideFlightPhase FlightPhase = EParaglideFlightPhase::Soaring;
+
+		if (CurrentPhase == EParaglideFlightPhase::Launch &&
+			(GroundClearanceMeters < Tuning.Launch.FreeFlightSwitchHeightMeters || WingInflation < 0.94f || ElapsedSeconds < Tuning.PhaseModel.LaunchDurationSeconds))
+		{
+			FlightPhase = EParaglideFlightPhase::Launch;
+		}
 
 		if (GroundClearanceMeters < Tuning.PhaseModel.ApproachHeightMeters)
 		{
@@ -147,9 +172,17 @@ namespace
 	FDerivedControls DeriveControls(const FParaglideControlState& Controls)
 	{
 		FDerivedControls Derived;
+		Derived.LeftFrontRiserTravel = Controls.LeftFrontRiserTravel;
+		Derived.LeftRearRiserTravel = Controls.LeftRearRiserTravel;
 		Derived.LeftBrakeTravel = Controls.LeftBrakeTravel;
+		Derived.RightFrontRiserTravel = Controls.RightFrontRiserTravel;
+		Derived.RightRearRiserTravel = Controls.RightRearRiserTravel;
 		Derived.RightBrakeTravel = Controls.RightBrakeTravel;
+		Derived.SymmetricFrontRiser = (Controls.LeftFrontRiserTravel + Controls.RightFrontRiserTravel) * 0.5f;
+		Derived.SymmetricRearRiser = (Controls.LeftRearRiserTravel + Controls.RightRearRiserTravel) * 0.5f;
 		Derived.SymmetricBrake = (Controls.LeftBrakeTravel + Controls.RightBrakeTravel) * 0.5f;
+		Derived.FrontRiserDifferential = Controls.RightFrontRiserTravel - Controls.LeftFrontRiserTravel;
+		Derived.RearRiserDifferential = Controls.RightRearRiserTravel - Controls.LeftRearRiserTravel;
 		Derived.BrakeDifferential = Controls.RightBrakeTravel - Controls.LeftBrakeTravel;
 		Derived.WeightShift = Controls.WeightShiftPosition;
 		Derived.SpeedBarTravel = Controls.SpeedBarTravel;
@@ -158,10 +191,18 @@ namespace
 
 	void StepControls(FParaglideControlState& Controls, const float DeltaSeconds)
 	{
-		const float LeftBrakeTarget = Controls.bLeftBrakePressed ? 1.0f : 0.0f;
-		const float RightBrakeTarget = Controls.bRightBrakePressed ? 1.0f : 0.0f;
-		const float WeightTarget = (Controls.bWeightRightPressed ? 1.0f : 0.0f) - (Controls.bWeightLeftPressed ? 1.0f : 0.0f);
-		const float SpeedBarTarget = Controls.bSpeedBarPressed ? 1.0f : 0.0f;
+		const float LeftFrontRiserTarget = FMath::Clamp(Controls.LeftFrontRiserTarget, 0.0f, 1.0f);
+		const float LeftRearRiserTarget = FMath::Clamp(Controls.LeftRearRiserTarget, 0.0f, 1.0f);
+		const float LeftBrakeTarget = FMath::Clamp(Controls.LeftBrakeTarget, 0.0f, 1.0f);
+		const float RightFrontRiserTarget = FMath::Clamp(Controls.RightFrontRiserTarget, 0.0f, 1.0f);
+		const float RightRearRiserTarget = FMath::Clamp(Controls.RightRearRiserTarget, 0.0f, 1.0f);
+		const float RightBrakeTarget = FMath::Clamp(Controls.RightBrakeTarget, 0.0f, 1.0f);
+		const float WeightTarget = FMath::Clamp(Controls.WeightShiftTarget, -1.0f, 1.0f);
+		const float SpeedBarTarget = FMath::Clamp(Controls.SpeedBarTarget, 0.0f, 1.0f);
+		const float FrontRiserStep = DeltaSeconds * 5.8f;
+		const float FrontRiserReleaseStep = DeltaSeconds * 6.8f;
+		const float RearRiserStep = DeltaSeconds * 5.0f;
+		const float RearRiserReleaseStep = DeltaSeconds * 6.6f;
 		const float BrakeStep = DeltaSeconds * 4.4f;
 		const float BrakeReleaseStep = DeltaSeconds * 6.2f;
 		const float WeightStep = DeltaSeconds * 6.4f;
@@ -169,20 +210,36 @@ namespace
 		const float SpeedBarStep = DeltaSeconds * 3.0f;
 		const float SpeedBarReleaseStep = DeltaSeconds * 3.8f;
 
+		Controls.LeftFrontRiserTravel = FMath::Clamp(
+			ApproachValue(Controls.LeftFrontRiserTravel, LeftFrontRiserTarget, Controls.LeftFrontRiserTravel < LeftFrontRiserTarget ? FrontRiserStep : FrontRiserReleaseStep),
+			0.0f,
+			1.0f);
+		Controls.LeftRearRiserTravel = FMath::Clamp(
+			ApproachValue(Controls.LeftRearRiserTravel, LeftRearRiserTarget, Controls.LeftRearRiserTravel < LeftRearRiserTarget ? RearRiserStep : RearRiserReleaseStep),
+			0.0f,
+			1.0f);
 		Controls.LeftBrakeTravel = FMath::Clamp(
-			ApproachValue(Controls.LeftBrakeTravel, LeftBrakeTarget, Controls.bLeftBrakePressed ? BrakeStep : BrakeReleaseStep),
+			ApproachValue(Controls.LeftBrakeTravel, LeftBrakeTarget, Controls.LeftBrakeTravel < LeftBrakeTarget ? BrakeStep : BrakeReleaseStep),
+			0.0f,
+			1.0f);
+		Controls.RightFrontRiserTravel = FMath::Clamp(
+			ApproachValue(Controls.RightFrontRiserTravel, RightFrontRiserTarget, Controls.RightFrontRiserTravel < RightFrontRiserTarget ? FrontRiserStep : FrontRiserReleaseStep),
+			0.0f,
+			1.0f);
+		Controls.RightRearRiserTravel = FMath::Clamp(
+			ApproachValue(Controls.RightRearRiserTravel, RightRearRiserTarget, Controls.RightRearRiserTravel < RightRearRiserTarget ? RearRiserStep : RearRiserReleaseStep),
 			0.0f,
 			1.0f);
 		Controls.RightBrakeTravel = FMath::Clamp(
-			ApproachValue(Controls.RightBrakeTravel, RightBrakeTarget, Controls.bRightBrakePressed ? BrakeStep : BrakeReleaseStep),
+			ApproachValue(Controls.RightBrakeTravel, RightBrakeTarget, Controls.RightBrakeTravel < RightBrakeTarget ? BrakeStep : BrakeReleaseStep),
 			0.0f,
 			1.0f);
 		Controls.WeightShiftPosition = FMath::Clamp(
-			ApproachValue(Controls.WeightShiftPosition, WeightTarget, WeightTarget == 0.0f ? WeightReleaseStep : WeightStep),
+			ApproachValue(Controls.WeightShiftPosition, WeightTarget, FMath::IsNearlyZero(WeightTarget, KINDA_SMALL_NUMBER) ? WeightReleaseStep : WeightStep),
 			-1.0f,
 			1.0f);
 		Controls.SpeedBarTravel = FMath::Clamp(
-			ApproachValue(Controls.SpeedBarTravel, SpeedBarTarget, Controls.bSpeedBarPressed ? SpeedBarStep : SpeedBarReleaseStep),
+			ApproachValue(Controls.SpeedBarTravel, SpeedBarTarget, Controls.SpeedBarTravel < SpeedBarTarget ? SpeedBarStep : SpeedBarReleaseStep),
 			0.0f,
 			1.0f);
 	}
@@ -408,29 +465,31 @@ void UParaglideFlightComponent::TickComponent(float DeltaTime, ELevelTick TickTy
 	DrawScenarioDebug();
 }
 
-void UParaglideFlightComponent::SetWeightLeftPressed(const bool bPressed)
+void UParaglideFlightComponent::ApplyControlInputs(const FParaglideControlState& ControlState)
 {
-	Controls.bWeightLeftPressed = bPressed;
-}
-
-void UParaglideFlightComponent::SetLeftBrakePressed(const bool bPressed)
-{
-	Controls.bLeftBrakePressed = bPressed;
-}
-
-void UParaglideFlightComponent::SetRightBrakePressed(const bool bPressed)
-{
-	Controls.bRightBrakePressed = bPressed;
-}
-
-void UParaglideFlightComponent::SetWeightRightPressed(const bool bPressed)
-{
-	Controls.bWeightRightPressed = bPressed;
-}
-
-void UParaglideFlightComponent::SetSpeedBarPressed(const bool bPressed)
-{
-	Controls.bSpeedBarPressed = bPressed;
+	Controls.bWeightLeftPressed = ControlState.bWeightLeftPressed;
+	Controls.bWeightRightPressed = ControlState.bWeightRightPressed;
+	Controls.bLeftBrakePressed = ControlState.bLeftBrakePressed;
+	Controls.bRightBrakePressed = ControlState.bRightBrakePressed;
+	Controls.bSpeedBarPressed = ControlState.bSpeedBarPressed;
+	Controls.bLeftFrontRiserPressed = ControlState.bLeftFrontRiserPressed;
+	Controls.bLeftRearRiserPressed = ControlState.bLeftRearRiserPressed;
+	Controls.bLeftBrakePrimaryPressed = ControlState.bLeftBrakePrimaryPressed;
+	Controls.bLeftBrakeDeepPressed = ControlState.bLeftBrakeDeepPressed;
+	Controls.bRightBrakeDeepPressed = ControlState.bRightBrakeDeepPressed;
+	Controls.bRightBrakePrimaryPressed = ControlState.bRightBrakePrimaryPressed;
+	Controls.bRightRearRiserPressed = ControlState.bRightRearRiserPressed;
+	Controls.bRightFrontRiserPressed = ControlState.bRightFrontRiserPressed;
+	Controls.bSpeedBarStageOnePressed = ControlState.bSpeedBarStageOnePressed;
+	Controls.bSpeedBarStageTwoPressed = ControlState.bSpeedBarStageTwoPressed;
+	Controls.LeftFrontRiserTarget = FMath::Clamp(ControlState.LeftFrontRiserTarget, 0.0f, 1.0f);
+	Controls.LeftRearRiserTarget = FMath::Clamp(ControlState.LeftRearRiserTarget, 0.0f, 1.0f);
+	Controls.LeftBrakeTarget = FMath::Clamp(ControlState.LeftBrakeTarget, 0.0f, 1.0f);
+	Controls.RightFrontRiserTarget = FMath::Clamp(ControlState.RightFrontRiserTarget, 0.0f, 1.0f);
+	Controls.RightRearRiserTarget = FMath::Clamp(ControlState.RightRearRiserTarget, 0.0f, 1.0f);
+	Controls.RightBrakeTarget = FMath::Clamp(ControlState.RightBrakeTarget, 0.0f, 1.0f);
+	Controls.WeightShiftTarget = FMath::Clamp(ControlState.WeightShiftTarget, -1.0f, 1.0f);
+	Controls.SpeedBarTarget = FMath::Clamp(ControlState.SpeedBarTarget, 0.0f, 1.0f);
 }
 
 void UParaglideFlightComponent::ResetScenario()
@@ -533,6 +592,11 @@ void UParaglideFlightComponent::ResetFromScenario()
 	AssistProfile = FParaglideFlightAssistProfile();
 	Atmosphere = GetCurrentScenario().Atmosphere;
 	FlightState = GetCurrentScenario().InitialFlightState;
+	FlightState.WingInflation = FMath::Clamp(FlightState.WingInflation, 0.0f, 1.0f);
+	FlightState.CanopyPressure = FMath::Clamp(FlightState.CanopyPressure, 0.1f, 1.2f);
+	FlightState.AngleOfAttackDeg = FMath::Clamp(FlightState.AngleOfAttackDeg, -6.0f, 18.0f);
+	FlightState.LeftCollapseAmount = FMath::Clamp(FlightState.LeftCollapseAmount, 0.0f, 1.0f);
+	FlightState.RightCollapseAmount = FMath::Clamp(FlightState.RightCollapseAmount, 0.0f, 1.0f);
 }
 
 void UParaglideFlightComponent::ApplyOwnerTransform() const
@@ -692,6 +756,12 @@ FParaglideFlightState UParaglideFlightComponent::StepFlightState(const FParaglid
 		NextState.TumbleAmount = 0.0f;
 		NextState.SpinRateDegPerSecond = 0.0f;
 		NextState.LoadFactor = 1.0f;
+		NextState.WingInflation = ApproachValue(CurrentState.WingInflation, 0.72f, DeltaSeconds * 0.9f);
+		NextState.CanopyPressure = ApproachValue(CurrentState.CanopyPressure, 0.58f, DeltaSeconds * 1.2f);
+		NextState.AngleOfAttackDeg = ApproachValue(CurrentState.AngleOfAttackDeg, Tuning.Airfoil.TrimAngleOfAttackDeg, DeltaSeconds * 4.0f);
+		NextState.LeftCollapseAmount = ApproachValue(CurrentState.LeftCollapseAmount, 0.0f, DeltaSeconds * Tuning.Airfoil.CollapseRecoveryRate);
+		NextState.RightCollapseAmount = ApproachValue(CurrentState.RightCollapseAmount, 0.0f, DeltaSeconds * Tuning.Airfoil.CollapseRecoveryRate);
+		NextState.WingSurgeDeg = ApproachValue(CurrentState.WingSurgeDeg, 0.0f, DeltaSeconds * Tuning.Airfoil.SurgeResponseRate);
 		NextState.Debug.DiveSinkMetersPerSecond = 0.0f;
 		NextState.Debug.SpiralSinkMetersPerSecond = 0.0f;
 		NextState.Debug.TumbleSinkMetersPerSecond = 0.0f;
@@ -701,26 +771,131 @@ FParaglideFlightState UParaglideFlightComponent::StepFlightState(const FParaglid
 	}
 
 	const float EffectiveTurbulence = FMath::Clamp(Atmosphere.Turbulence * (1.0f - AssistProfile.TurbulenceDamping), 0.0f, 1.0f);
+	const float FrontRiserGroundRunGainKmh =
+		CurrentState.FlightPhase == EParaglideFlightPhase::Launch
+			? DerivedControls.SymmetricFrontRiser * Tuning.Launch.FrontRiserGroundRunSpeedGainKmh
+			: 0.0f;
 	float AirspeedKmh = ApproachValue(
 		CurrentState.AirspeedKmh,
-		GetTargetAirspeedKmh(DerivedControls, AssistProfile, Tuning),
+		GetTargetAirspeedKmh(DerivedControls, AssistProfile, Tuning) + FrontRiserGroundRunGainKmh,
 		DeltaSeconds * Tuning.Controls.AirspeedResponseRate * AssistProfile.InputResponsiveness);
-	const float StallWarning = FMath::Clamp(
-		(DerivedControls.SymmetricBrake - Tuning.Stability.StallBrakeStart) / Tuning.Stability.StallBrakeRange +
-		(Tuning.Stability.StallAirspeedReferenceKmh - AirspeedKmh) / Tuning.Stability.StallAirspeedRangeKmh -
-		DerivedControls.SpeedBarTravel * Tuning.Stability.SpeedBarStallRelief -
-		AssistProfile.RecoveryAssist * Tuning.Stability.RecoveryAssistStallRelief,
+	const float AngleOfAttackDeg = FMath::Clamp(
+		Tuning.Airfoil.TrimAngleOfAttackDeg +
+		DerivedControls.SymmetricBrake * Tuning.Airfoil.BrakeAngleOfAttackGainDeg +
+		DerivedControls.SymmetricRearRiser * Tuning.Airfoil.RearRiserAngleOfAttackGainDeg -
+		DerivedControls.SymmetricFrontRiser * Tuning.Airfoil.FrontRiserAngleOfAttackLossDeg -
+		DerivedControls.SpeedBarTravel * Tuning.Airfoil.SpeedBarAngleOfAttackLossDeg +
+		CurrentState.WingSurgeDeg * 0.08f,
+		-8.0f,
+		20.0f);
+	const float InflationTarget = FMath::Clamp(
+		CurrentState.FlightPhase == EParaglideFlightPhase::Launch
+			? 0.26f +
+				DerivedControls.SymmetricFrontRiser * Tuning.Launch.FrontRiserInflationGain +
+				FMath::Clamp((AirspeedKmh - 12.0f) / Tuning.BaselineWing.TrimAirspeedKmh, 0.0f, 1.0f) * Tuning.Launch.AirspeedInflationGain -
+				DerivedControls.SymmetricBrake * Tuning.Launch.BrakeInflationPenalty
+			: 0.9f +
+				FMath::Clamp((AirspeedKmh - Tuning.BaselineWing.MinControllableAirspeedKmh) /
+					FMath::Max(Tuning.BaselineWing.TrimAirspeedKmh - Tuning.BaselineWing.MinControllableAirspeedKmh, 1.0f), 0.0f, 1.0f) * 0.16f -
+				DerivedControls.SymmetricFrontRiser * 0.12f -
+				DerivedControls.SymmetricBrake * 0.05f,
+		0.0f,
+		1.0f);
+	const float WingInflation = FMath::Clamp(
+		ApproachValue(
+			CurrentState.WingInflation,
+			InflationTarget,
+			DeltaSeconds * (CurrentState.WingInflation < InflationTarget ? Tuning.Launch.InflationBuildRate : Tuning.Launch.InflationDecayRate)),
+		0.0f,
+		1.0f);
+	const float AirspeedPressureFactor = FMath::Clamp(
+		(AirspeedKmh - Tuning.BaselineWing.MinControllableAirspeedKmh) /
+			FMath::Max(Tuning.BaselineWing.MaxAirspeedKmh - Tuning.BaselineWing.MinControllableAirspeedKmh, 1.0f),
+		0.0f,
+		1.0f);
+	float PressureTarget =
+		Tuning.Airfoil.BasePressure +
+		AirspeedPressureFactor * Tuning.Airfoil.AirspeedPressureGain +
+		WingInflation * Tuning.Airfoil.InflationPressureGain -
+		DerivedControls.SymmetricFrontRiser * Tuning.Airfoil.FrontRiserPressurePenalty -
+		DerivedControls.SpeedBarTravel * Tuning.Airfoil.SpeedBarPressurePenalty;
+	PressureTarget -= FMath::Clamp((Tuning.Airfoil.TrimAngleOfAttackDeg - AngleOfAttackDeg) / 8.0f, 0.0f, 1.0f) * Tuning.Airfoil.LowAoAPressurePenalty;
+	PressureTarget -= FMath::Clamp((AngleOfAttackDeg - (Tuning.Airfoil.TrimAngleOfAttackDeg + 6.0f)) / 8.0f, 0.0f, 1.0f) * Tuning.Airfoil.HighAoAPressurePenalty;
+	PressureTarget -= EffectiveTurbulence * 0.08f;
+	const float CanopyPressure = FMath::Clamp(
+		ApproachValue(CurrentState.CanopyPressure, PressureTarget, DeltaSeconds * 4.8f),
+		0.05f,
+		1.2f);
+	const float SurgeTargetDeg =
+		DerivedControls.SymmetricFrontRiser * Tuning.Airfoil.FrontRiserSurgeGainDeg +
+		DerivedControls.SpeedBarTravel * Tuning.Airfoil.SpeedBarSurgeGainDeg -
+		DerivedControls.SymmetricBrake * Tuning.Airfoil.BrakeSurgeDampingDeg -
+		DerivedControls.SymmetricRearRiser * 6.0f;
+	const float WingSurgeDeg = ApproachValue(CurrentState.WingSurgeDeg, SurgeTargetDeg, DeltaSeconds * Tuning.Airfoil.SurgeResponseRate);
+	const float GustShock = FMath::Max(
+		0.0f,
+		FMath::Abs(FMath::Sin(CurrentState.ElapsedSeconds * 3.6f + CurrentState.PositionMeters.X * 0.015f - CurrentState.PositionMeters.Y * 0.011f)) *
+			EffectiveTurbulence -
+			0.18f);
+	const float CollapseRisk = FMath::Clamp(
+		(Tuning.Airfoil.CollapsePressureThreshold - CanopyPressure) / Tuning.Airfoil.CollapsePressureRange +
+		GustShock * 0.7f +
+		FMath::Clamp((FMath::Abs(WingSurgeDeg) - 8.0f) / 18.0f, 0.0f, 1.0f) * 0.45f +
+		DerivedControls.SymmetricFrontRiser * 0.24f,
 		0.0f,
 		1.0f);
 	const float AsymmetryInput = FMath::Clamp(
-		FMath::Max(FMath::Abs(DerivedControls.BrakeDifferential), FMath::Abs(DerivedControls.WeightShift) * 0.85f),
+		FMath::Max(
+			FMath::Max(
+				FMath::Abs(DerivedControls.BrakeDifferential),
+				FMath::Abs(DerivedControls.RearRiserDifferential) * 0.7f),
+			FMath::Max(
+				FMath::Abs(DerivedControls.FrontRiserDifferential) * 0.6f,
+				FMath::Abs(DerivedControls.WeightShift) * 0.85f)),
+		0.0f,
+		1.0f);
+	const float CollapseBias = FMath::Clamp(
+		DerivedControls.BrakeDifferential * 0.42f +
+		DerivedControls.RearRiserDifferential * 0.22f +
+		DerivedControls.FrontRiserDifferential * 0.24f +
+		DerivedControls.WeightShift * 0.18f,
+		-1.0f,
+		1.0f);
+	const float LeftCollapseTarget = CollapseRisk * FMath::Clamp(0.5f - CollapseBias * 0.5f, 0.05f, 1.0f);
+	const float RightCollapseTarget = CollapseRisk * FMath::Clamp(0.5f + CollapseBias * 0.5f, 0.05f, 1.0f);
+	const float LeftCollapseAmount = FMath::Clamp(
+		ApproachValue(
+			CurrentState.LeftCollapseAmount,
+			LeftCollapseTarget,
+			DeltaSeconds * (CurrentState.LeftCollapseAmount < LeftCollapseTarget ? Tuning.Airfoil.CollapseBuildRate : Tuning.Airfoil.CollapseRecoveryRate)),
+		0.0f,
+		1.0f);
+	const float RightCollapseAmount = FMath::Clamp(
+		ApproachValue(
+			CurrentState.RightCollapseAmount,
+			RightCollapseTarget,
+			DeltaSeconds * (CurrentState.RightCollapseAmount < RightCollapseTarget ? Tuning.Airfoil.CollapseBuildRate : Tuning.Airfoil.CollapseRecoveryRate)),
+		0.0f,
+		1.0f);
+	const float CollapseAverage = (LeftCollapseAmount + RightCollapseAmount) * 0.5f;
+	const float CollapseDifferential = RightCollapseAmount - LeftCollapseAmount;
+	const float StallWarning = FMath::Clamp(
+		(AngleOfAttackDeg - (Tuning.Airfoil.TrimAngleOfAttackDeg + 4.6f)) / 7.2f +
+		DerivedControls.SymmetricRearRiser * Tuning.Controls.RearRiserStallContribution +
+		(Tuning.Stability.StallAirspeedReferenceKmh - AirspeedKmh) / Tuning.Stability.StallAirspeedRangeKmh -
+		DerivedControls.SpeedBarTravel * Tuning.Stability.SpeedBarStallRelief -
+		AssistProfile.RecoveryAssist * Tuning.Stability.RecoveryAssistStallRelief +
+		FMath::Clamp((0.58f - CanopyPressure) / 0.22f, 0.0f, 1.0f) * 0.5f +
+		CollapseAverage * 0.22f,
 		0.0f,
 		1.0f);
 	const float SignedTurnInput = GetSignedTurnInput(DerivedControls, CurrentState.SpinRateDegPerSecond);
 	const float DiveDrive = FMath::Clamp(
 		DerivedControls.SpeedBarTravel * 0.9f +
+		DerivedControls.SymmetricFrontRiser * 0.58f +
 		FMath::Clamp((FMath::Abs(CurrentState.BankDeg) - 35.0f) / 55.0f, 0.0f, 1.0f) * 0.45f +
 		FMath::Clamp((CurrentState.AirspeedKmh - Tuning.BaselineWing.TrimAirspeedKmh) / 18.0f, 0.0f, 1.0f) * 0.25f -
+		DerivedControls.SymmetricRearRiser * 0.18f -
 		DerivedControls.SymmetricBrake * 0.55f,
 		0.0f,
 		1.0f);
@@ -735,7 +910,8 @@ FParaglideFlightState UParaglideFlightComponent::StepFlightState(const FParaglid
 		1.0f) * FMath::Clamp(
 			(AsymmetryInput - Tuning.Maneuvers.TumbleTriggerAsymmetry) / (1.0f - Tuning.Maneuvers.TumbleTriggerAsymmetry),
 			0.0f,
-			1.0f);
+			1.0f) *
+		FMath::Lerp(0.75f, 1.25f, CollapseAverage);
 	const float TumbleAmount = FMath::Clamp(
 		CurrentState.TumbleAmount +
 		(TumbleTrigger * Tuning.Maneuvers.TumbleBuildRate - (1.0f - TumbleTrigger) * Tuning.Maneuvers.TumbleRecoveryRate) * DeltaSeconds,
@@ -748,9 +924,12 @@ FParaglideFlightState UParaglideFlightComponent::StepFlightState(const FParaglid
 	const float ControlAuthority = FMath::Clamp(
 		AssistProfile.InputResponsiveness +
 		AssistProfile.CoordinationAssist * Tuning.Stability.CoordinationAuthorityGain -
-		StallWarning * Tuning.Stability.StallAuthorityPenalty,
+		StallWarning * Tuning.Stability.StallAuthorityPenalty -
+		CollapseAverage * Tuning.Airfoil.CollapseAuthorityPenalty,
 		Tuning.Stability.ControlAuthorityFloor,
-		Tuning.Stability.ControlAuthorityCeiling);
+		Tuning.Stability.ControlAuthorityCeiling) *
+		FMath::Lerp(0.38f, 1.0f, WingInflation) *
+		FMath::Lerp(0.45f, 1.0f, FMath::Clamp(CanopyPressure, 0.0f, 1.0f));
 	const float GustBankDeg =
 		FMath::Sin(CurrentState.ElapsedSeconds * 1.9f + CurrentState.HeadingDeg / 23.0f) *
 		EffectiveTurbulence * Tuning.Stability.GustRollMagnitudeDeg;
@@ -760,11 +939,14 @@ FParaglideFlightState UParaglideFlightComponent::StepFlightState(const FParaglid
 		FMath::Max(DiveEnergy * 0.9f, TumbleAmount));
 	const float CommandedBankDeg =
 		(DerivedControls.BrakeDifferential * (Tuning.Controls.BrakeToRollDeg + DiveEnergy * Tuning.Maneuvers.AcroBankBonusDeg) +
+			DerivedControls.RearRiserDifferential * (Tuning.Controls.RearRiserToRollDeg + DiveEnergy * (Tuning.Maneuvers.AcroBankBonusDeg * 0.24f)) +
+			DerivedControls.FrontRiserDifferential * Tuning.Controls.FrontRiserToRollDeg +
 			DerivedControls.WeightShift * (Tuning.Controls.WeightShiftAuthorityDeg + DiveEnergy * (Tuning.Maneuvers.AcroBankBonusDeg * 0.45f))) *
 		ControlAuthority;
+	const float CollapseBankDeg = CollapseDifferential * Tuning.Airfoil.CollapseBankGainDeg;
 	const float TumbleBankDeg = TumbleAmount * SignedTurnInput * (64.0f + TumbleAmount * 48.0f);
 	const float TargetBankDeg = FMath::Clamp(
-		CommandedBankDeg + GustBankDeg + TumbleBankDeg,
+		CommandedBankDeg + GustBankDeg + CollapseBankDeg + TumbleBankDeg,
 		-ManeuverBankLimitDeg,
 		ManeuverBankLimitDeg);
 	const float BankDeg = ApproachValue(
@@ -802,8 +984,15 @@ FParaglideFlightState UParaglideFlightComponent::StepFlightState(const FParaglid
 	const float BrakeSinkMetersPerSecond =
 		DerivedControls.SymmetricBrake * Tuning.Controls.BrakeSinkLinearMetersPerSecond +
 		FMath::Square(DerivedControls.SymmetricBrake) * Tuning.Controls.BrakeSinkQuadraticMetersPerSecond;
+	const float FrontRiserSinkMetersPerSecond =
+		DerivedControls.SymmetricFrontRiser * 0.18f +
+		FMath::Square(DerivedControls.SymmetricFrontRiser) * 0.34f;
+	const float RearRiserSinkMetersPerSecond =
+		DerivedControls.SymmetricRearRiser * Tuning.Controls.RearRiserSinkLinearMetersPerSecond +
+		FMath::Square(DerivedControls.SymmetricRearRiser) * Tuning.Controls.RearRiserSinkQuadraticMetersPerSecond;
 	const float StallSinkMetersPerSecond = FMath::Square(StallWarning) * Tuning.Stability.StallSinkMultiplier;
 	const float TumbleSinkMetersPerSecond = TumbleAmount * Tuning.Maneuvers.TumbleSinkMultiplier;
+	const float CollapseSinkMetersPerSecond = CollapseAverage * Tuning.Airfoil.CollapseSinkMetersPerSecond;
 	const float LowAltitudeFactor = FMath::Clamp(
 		(Tuning.PhaseModel.FlareArmingHeightMeters - CurrentState.GroundClearanceMeters) / Tuning.PhaseModel.FlareArmingHeightMeters,
 		0.0f,
@@ -832,25 +1021,46 @@ FParaglideFlightState UParaglideFlightComponent::StepFlightState(const FParaglid
 		AirspeedKmh +
 		DiveEnergy * Tuning.Maneuvers.DiveAirspeedGainKmh -
 		TumbleAmount * (4.0f + StallWarning * 6.0f) -
+		CollapseAverage * 5.4f -
 		FlareDragKmh,
 		Tuning.BaselineWing.FlareMinAirspeedKmh,
 		Tuning.BaselineWing.MaxAirspeedKmh);
 
 	const float AirMassSinkMetersPerSecond = LeeSinkMetersPerSecond + ThermalSinkMetersPerSecond;
+	const float LiftEfficiency = FMath::Clamp(
+		0.24f +
+		WingInflation * 0.42f +
+		CanopyPressure * 0.34f -
+		CollapseAverage * 0.48f,
+		0.18f,
+		1.18f);
+	const float LaunchLiftMetersPerSecond =
+		CurrentState.FlightPhase == EParaglideFlightPhase::Launch
+			? FMath::Clamp(
+				(WingInflation * CanopyPressure - Tuning.Launch.TakeoffPressureThreshold) / 0.24f,
+				0.0f,
+				1.0f) *
+				Tuning.Launch.LaunchLiftMultiplier *
+				FMath::Clamp((AirspeedKmh - Tuning.BaselineWing.MinControllableAirspeedKmh * 0.7f) / 10.0f, 0.0f, 1.0f)
+			: 0.0f;
 	const float TotalSinkMetersPerSecond =
 		BaseSinkMetersPerSecond +
 		InducedTurnSinkMetersPerSecond +
 		DiveSinkMetersPerSecond +
 		SpiralSinkMetersPerSecond +
+		FrontRiserSinkMetersPerSecond +
+		RearRiserSinkMetersPerSecond +
 		BrakeSinkMetersPerSecond +
 		StallSinkMetersPerSecond +
+		CollapseSinkMetersPerSecond +
 		TumbleSinkMetersPerSecond +
 		AirMassSinkMetersPerSecond;
 	const float VerticalSpeedMetersPerSecond =
-		ThermalLiftMetersPerSecond +
-		RidgeLiftMetersPerSecond +
-		TurbulenceLiftMetersPerSecond +
-		FlareLiftMetersPerSecond -
+		(ThermalLiftMetersPerSecond +
+		 RidgeLiftMetersPerSecond +
+		 TurbulenceLiftMetersPerSecond +
+		 FlareLiftMetersPerSecond +
+		 LaunchLiftMetersPerSecond) * LiftEfficiency -
 		TotalSinkMetersPerSecond;
 	const float DynamicMinPitchDeg = FMath::Lerp(Tuning.Attitude.MinPitchDeg, -Tuning.Maneuvers.TumblePitchLimitDeg, FMath::Max(DiveEnergy, TumbleAmount));
 	const float DynamicMaxPitchDeg = FMath::Lerp(Tuning.Attitude.MaxPitchDeg, Tuning.Maneuvers.TumblePitchLimitDeg * 0.8f, TumbleAmount);
@@ -860,11 +1070,16 @@ FParaglideFlightState UParaglideFlightComponent::StepFlightState(const FParaglid
 		Tuning.Maneuvers.TumblePitchLimitDeg;
 	const float TargetPitchDeg = FMath::Clamp(
 		Tuning.Attitude.TrimPitchDeg +
+		AngleOfAttackDeg * 0.45f -
 		DerivedControls.SpeedBarTravel * Tuning.Attitude.SpeedBarPitchGainDeg -
+		DerivedControls.SymmetricFrontRiser * Tuning.Attitude.FrontRiserPitchDiveDeg +
+		DerivedControls.SymmetricRearRiser * Tuning.Attitude.RearRiserPitchGainDeg +
 		DerivedControls.SymmetricBrake * Tuning.Attitude.SymmetricBrakePitchLossDeg +
 		StallWarning * Tuning.Attitude.StallPitchGainDeg +
 		FlareEffectiveness * Tuning.Attitude.FlarePitchGainDeg -
 		EffectiveTurbulence * Tuning.Attitude.TurbulencePitchGainDeg -
+		WingSurgeDeg * 0.55f -
+		CollapseAverage * Tuning.Airfoil.CollapsePitchLossDeg -
 		DiveEnergy * Tuning.Maneuvers.DivePitchGainDeg +
 		TumblePitchOffsetDeg,
 		DynamicMinPitchDeg,
@@ -911,6 +1126,12 @@ FParaglideFlightState UParaglideFlightComponent::StepFlightState(const FParaglid
 		NextState.TurnRateDegPerSecond = 0.0f;
 		NextState.StallWarning = StallWarning;
 		NextState.FlareEffectiveness = FlareEffectiveness;
+		NextState.WingInflation = WingInflation;
+		NextState.CanopyPressure = CanopyPressure;
+		NextState.AngleOfAttackDeg = AngleOfAttackDeg;
+		NextState.LeftCollapseAmount = LeftCollapseAmount;
+		NextState.RightCollapseAmount = RightCollapseAmount;
+		NextState.WingSurgeDeg = WingSurgeDeg;
 		NextState.DiveEnergy = DiveEnergy;
 		NextState.TumbleAmount = TumbleAmount;
 		NextState.SpinRateDegPerSecond = SpinRateDegPerSecond;
@@ -925,9 +1146,9 @@ FParaglideFlightState UParaglideFlightComponent::StepFlightState(const FParaglid
 		NextState.Debug.StallSinkMetersPerSecond = StallSinkMetersPerSecond;
 		NextState.Debug.DiveSinkMetersPerSecond = DiveSinkMetersPerSecond;
 		NextState.Debug.SpiralSinkMetersPerSecond = SpiralSinkMetersPerSecond;
-		NextState.Debug.TumbleSinkMetersPerSecond = TumbleSinkMetersPerSecond;
+		NextState.Debug.TumbleSinkMetersPerSecond = TumbleSinkMetersPerSecond + CollapseSinkMetersPerSecond + FrontRiserSinkMetersPerSecond;
 		NextState.Debug.TurbulenceLiftMetersPerSecond = TurbulenceLiftMetersPerSecond;
-		NextState.Debug.FlareLiftMetersPerSecond = FlareLiftMetersPerSecond;
+		NextState.Debug.FlareLiftMetersPerSecond = FlareLiftMetersPerSecond + LaunchLiftMetersPerSecond;
 		NextState.Debug.TotalSinkMetersPerSecond = TotalSinkMetersPerSecond;
 		return NextState;
 	}
@@ -951,6 +1172,12 @@ FParaglideFlightState UParaglideFlightComponent::StepFlightState(const FParaglid
 	NextState.TurnRateDegPerSecond = TurnRateDegPerSecond;
 	NextState.StallWarning = StallWarning;
 	NextState.FlareEffectiveness = FlareEffectiveness;
+	NextState.WingInflation = WingInflation;
+	NextState.CanopyPressure = CanopyPressure;
+	NextState.AngleOfAttackDeg = AngleOfAttackDeg;
+	NextState.LeftCollapseAmount = LeftCollapseAmount;
+	NextState.RightCollapseAmount = RightCollapseAmount;
+	NextState.WingSurgeDeg = WingSurgeDeg;
 	NextState.DiveEnergy = DiveEnergy;
 	NextState.TumbleAmount = TumbleAmount;
 	NextState.SpinRateDegPerSecond = SpinRateDegPerSecond;
@@ -958,16 +1185,22 @@ FParaglideFlightState UParaglideFlightComponent::StepFlightState(const FParaglid
 	NextState.LandingZoneDistanceMeters = LandingMetrics.bValid ? LandingMetrics.DistanceMeters : -1.0f;
 	NextState.LandingApproachErrorDeg = LandingMetrics.bValid ? LandingMetrics.ApproachErrorDeg : -1.0f;
 	NextState.LandingRating = EParaglideLandingRating::None;
-	NextState.FlightPhase = GetFlightPhase(NextState.ElapsedSeconds, NextState.GroundClearanceMeters, FlareEffectiveness, Tuning);
+	NextState.FlightPhase = GetFlightPhase(
+		CurrentState.FlightPhase,
+		NextState.ElapsedSeconds,
+		NextState.GroundClearanceMeters,
+		NextState.WingInflation,
+		FlareEffectiveness,
+		Tuning);
 	NextState.Debug.BaseSinkMetersPerSecond = BaseSinkMetersPerSecond;
 	NextState.Debug.InducedTurnSinkMetersPerSecond = InducedTurnSinkMetersPerSecond;
 	NextState.Debug.BrakeSinkMetersPerSecond = BrakeSinkMetersPerSecond;
 	NextState.Debug.StallSinkMetersPerSecond = StallSinkMetersPerSecond;
 	NextState.Debug.DiveSinkMetersPerSecond = DiveSinkMetersPerSecond;
 	NextState.Debug.SpiralSinkMetersPerSecond = SpiralSinkMetersPerSecond;
-	NextState.Debug.TumbleSinkMetersPerSecond = TumbleSinkMetersPerSecond;
+	NextState.Debug.TumbleSinkMetersPerSecond = TumbleSinkMetersPerSecond + CollapseSinkMetersPerSecond + FrontRiserSinkMetersPerSecond;
 	NextState.Debug.TurbulenceLiftMetersPerSecond = TurbulenceLiftMetersPerSecond;
-	NextState.Debug.FlareLiftMetersPerSecond = FlareLiftMetersPerSecond;
+	NextState.Debug.FlareLiftMetersPerSecond = FlareLiftMetersPerSecond + LaunchLiftMetersPerSecond;
 	NextState.Debug.TotalSinkMetersPerSecond = TotalSinkMetersPerSecond;
 	return NextState;
 }
