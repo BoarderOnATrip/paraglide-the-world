@@ -7,7 +7,11 @@
 #include "ParaglidePrototypeWorld.generated.h"
 
 class UInstancedStaticMeshComponent;
+class UDirectionalLightComponent;
+class UExponentialHeightFogComponent;
 class USceneComponent;
+class USkyAtmosphereComponent;
+class USkyLightComponent;
 class UStaticMesh;
 class UTextRenderComponent;
 
@@ -87,6 +91,8 @@ private:
 	void BuildForestPatches();
 	void BuildClouds();
 	void BuildSkyMarkers();
+	void BuildBackdropMountains();
+	void BuildAtmosphericBands();
 	void AddBoxInstance(UInstancedStaticMeshComponent* Component, const FVector& LocationMeters, const FVector& Scale, const FRotator& Rotation = FRotator::ZeroRotator) const;
 	void AddSphereInstance(UInstancedStaticMeshComponent* Component, const FVector& LocationMeters, const FVector& Scale, const FRotator& Rotation = FRotator::ZeroRotator) const;
 	void AddCylinderInstance(UInstancedStaticMeshComponent* Component, const FVector& LocationMeters, const FVector& Scale, const FRotator& Rotation = FRotator::ZeroRotator) const;
@@ -96,6 +102,18 @@ private:
 private:
 	UPROPERTY(VisibleAnywhere, Category = "Paraglide")
 	TObjectPtr<USceneComponent> SceneRoot;
+
+	UPROPERTY(VisibleAnywhere, Category = "Paraglide|Atmosphere")
+	TObjectPtr<UDirectionalLightComponent> SunLight;
+
+	UPROPERTY(VisibleAnywhere, Category = "Paraglide|Atmosphere")
+	TObjectPtr<USkyAtmosphereComponent> SkyAtmosphere;
+
+	UPROPERTY(VisibleAnywhere, Category = "Paraglide|Atmosphere")
+	TObjectPtr<USkyLightComponent> SkyLight;
+
+	UPROPERTY(VisibleAnywhere, Category = "Paraglide|Atmosphere")
+	TObjectPtr<UExponentialHeightFogComponent> HeightFog;
 
 	UPROPERTY(VisibleAnywhere, Category = "Paraglide")
 	TObjectPtr<UInstancedStaticMeshComponent> GroundDeckInstances;
@@ -150,6 +168,12 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = "Paraglide")
 	TObjectPtr<UInstancedStaticMeshComponent> RockSpineInstances;
+
+	UPROPERTY(VisibleAnywhere, Category = "Paraglide")
+	TObjectPtr<UInstancedStaticMeshComponent> BackdropMountainInstances;
+
+	UPROPERTY(VisibleAnywhere, Category = "Paraglide")
+	TObjectPtr<UInstancedStaticMeshComponent> MistBandInstances;
 
 	UPROPERTY(VisibleAnywhere, Category = "Paraglide")
 	TObjectPtr<UTextRenderComponent> LaunchLabel;

@@ -2,8 +2,12 @@
 
 #include "World/ParaglidePrototypeWorld.h"
 
+#include "Components/DirectionalLightComponent.h"
+#include "Components/ExponentialHeightFogComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/SceneComponent.h"
+#include "Components/SkyAtmosphereComponent.h"
+#include "Components/SkyLightComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Kismet/GameplayStatics.h"
@@ -27,6 +31,43 @@ AParaglidePrototypeWorld::AParaglidePrototypeWorld()
 
 	SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
 	SetRootComponent(SceneRoot);
+
+	SunLight = CreateDefaultSubobject<UDirectionalLightComponent>(TEXT("SunLight"));
+	SunLight->SetupAttachment(SceneRoot);
+	SunLight->SetMobility(EComponentMobility::Movable);
+	SunLight->SetAtmosphereSunLight(true);
+	SunLight->AtmosphereSunLightIndex = 0;
+	SunLight->SetRelativeRotation(FRotator(-17.0f, -28.0f, 0.0f));
+	SunLight->SetIntensity(120000.0f);
+	SunLight->SetLightColor(FLinearColor(1.0f, 0.94f, 0.84f, 1.0f));
+	SunLight->bEnableLightShaftBloom = true;
+	SunLight->OcclusionMaskDarkness = 0.32f;
+
+	SkyAtmosphere = CreateDefaultSubobject<USkyAtmosphereComponent>(TEXT("SkyAtmosphere"));
+	SkyAtmosphere->SetupAttachment(SceneRoot);
+
+	SkyLight = CreateDefaultSubobject<USkyLightComponent>(TEXT("SkyLight"));
+	SkyLight->SetupAttachment(SceneRoot);
+	SkyLight->SetMobility(EComponentMobility::Movable);
+	SkyLight->SetLowerHemisphereColor(FLinearColor(0.28f, 0.31f, 0.34f, 1.0f));
+	SkyLight->SetLightColor(FLinearColor(0.98f, 0.99f, 1.0f, 1.0f));
+	SkyLight->SetIntensity(1.65f);
+	SkyLight->bRealTimeCapture = true;
+
+	HeightFog = CreateDefaultSubobject<UExponentialHeightFogComponent>(TEXT("HeightFog"));
+	HeightFog->SetupAttachment(SceneRoot);
+	HeightFog->SetMobility(EComponentMobility::Movable);
+	HeightFog->FogDensity = 0.0125f;
+	HeightFog->FogHeightFalloff = 0.14f;
+	HeightFog->FogMaxOpacity = 0.78f;
+	HeightFog->SetFogInscatteringColor(FLinearColor(0.72f, 0.80f, 0.88f, 1.0f));
+	HeightFog->DirectionalInscatteringLuminance = FLinearColor(0.98f, 0.86f, 0.66f, 1.0f);
+	HeightFog->DirectionalInscatteringStartDistance = 1200.0f;
+	HeightFog->DirectionalInscatteringExponent = 12.0f;
+	HeightFog->bEnableVolumetricFog = true;
+	HeightFog->VolumetricFogScatteringDistribution = 0.32f;
+	HeightFog->SetVolumetricFogAlbedo(FColor(212, 224, 235, 255));
+	HeightFog->VolumetricFogExtinctionScale = 0.12f;
 
 	GroundDeckInstances = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("GroundDeckInstances"));
 	GroundDeckInstances->SetupAttachment(SceneRoot);
@@ -172,6 +213,22 @@ AParaglidePrototypeWorld::AParaglidePrototypeWorld()
 		RockSpineInstances->SetStaticMesh(CubeMesh.Object);
 	}
 
+	BackdropMountainInstances = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("BackdropMountainInstances"));
+	BackdropMountainInstances->SetupAttachment(SceneRoot);
+	BackdropMountainInstances->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	if (CubeMesh.Succeeded())
+	{
+		BackdropMountainInstances->SetStaticMesh(CubeMesh.Object);
+	}
+
+	MistBandInstances = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("MistBandInstances"));
+	MistBandInstances->SetupAttachment(SceneRoot);
+	MistBandInstances->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	if (SphereMesh.Succeeded())
+	{
+		MistBandInstances->SetStaticMesh(SphereMesh.Object);
+	}
+
 	LaunchLabel = CreateDefaultSubobject<UTextRenderComponent>(TEXT("LaunchLabel"));
 	LaunchLabel->SetupAttachment(SceneRoot);
 	LaunchLabel->SetWorldSize(LabelWorldSize);
@@ -237,6 +294,8 @@ AParaglidePrototypeWorld::AParaglidePrototypeWorld()
 	Tint(WindMarkerInstances, FLinearColor(0.95f, 0.88f, 0.30f, 1.0f));
 	Tint(MeadowStripeInstances, FLinearColor(0.24f, 0.50f, 0.20f, 1.0f));
 	Tint(RockSpineInstances, FLinearColor(0.38f, 0.31f, 0.24f, 1.0f));
+	Tint(BackdropMountainInstances, FLinearColor(0.18f, 0.18f, 0.20f, 1.0f));
+	Tint(MistBandInstances, FLinearColor(0.85f, 0.90f, 0.95f, 1.0f));
 }
 
 void AParaglidePrototypeWorld::BeginPlay()
@@ -245,6 +304,10 @@ void AParaglidePrototypeWorld::BeginPlay()
 
 	RecenterToActivePawn();
 	RebuildPrototypeWorld();
+	if (SkyLight != nullptr)
+	{
+		SkyLight->RecaptureSky();
+	}
 }
 
 void AParaglidePrototypeWorld::Tick(float DeltaSeconds)
@@ -283,6 +346,8 @@ void AParaglidePrototypeWorld::RebuildPrototypeWorld()
 	BuildGates();
 	BuildClouds();
 	BuildSkyMarkers();
+	BuildBackdropMountains();
+	BuildAtmosphericBands();
 	BuildLabels();
 }
 
@@ -324,6 +389,8 @@ void AParaglidePrototypeWorld::ClearInstances()
 	WindMarkerInstances->ClearInstances();
 	MeadowStripeInstances->ClearInstances();
 	RockSpineInstances->ClearInstances();
+	BackdropMountainInstances->ClearInstances();
+	MistBandInstances->ClearInstances();
 }
 
 void AParaglidePrototypeWorld::BuildLaunchDeck()
@@ -521,6 +588,53 @@ void AParaglidePrototypeWorld::BuildSkyMarkers()
 		const float Y = RidgeDistanceMeters - 20.0f + FMath::Abs(Marker) * 10.0f;
 		AddBoxInstance(WindMarkerInstances, FVector(X, Y, 34.0f + FMath::Abs(Marker) * 2.0f), FVector(0.25f, 0.25f, 8.0f));
 		AddBoxInstance(WindMarkerInstances, FVector(X + 1.4f, Y, 38.0f + FMath::Abs(Marker) * 2.0f), FVector(1.8f, 0.25f, 0.3f), FRotator(0.0f, 0.0f, Marker * 4.0f));
+	}
+}
+
+void AParaglidePrototypeWorld::BuildBackdropMountains()
+{
+	const float FarRidgeY = LandingZoneDistanceMeters + 360.0f;
+	const int32 LayerCount = 2;
+
+	for (int32 Layer = 0; Layer < LayerCount; ++Layer)
+	{
+		const float LayerOffset = Layer == 0 ? 0.0f : 210.0f;
+		const float LayerDepth = Layer == 0 ? 28.0f : 20.0f;
+		for (int32 PeakIndex = -8; PeakIndex <= 8; ++PeakIndex)
+		{
+			const float PeakAlpha = (static_cast<float>(PeakIndex) + 8.0f) / 16.0f;
+			const float PeakX = FMath::Lerp(-820.0f, 820.0f, PeakAlpha) + (Layer == 0 ? 0.0f : 40.0f * FMath::Sin(PeakAlpha * PI * 5.0f));
+			const float PeakHeight = 48.0f
+				+ 26.0f * FMath::Abs(FMath::Sin(PeakAlpha * PI * 3.0f))
+				+ 14.0f * FMath::Cos(PeakAlpha * PI * 6.0f)
+				+ Layer * 20.0f;
+			const float SnowLine = PeakHeight - 11.0f + Layer * 2.0f;
+
+			AddBoxInstance(BackdropMountainInstances, FVector(PeakX, FarRidgeY + LayerOffset, PeakHeight * 0.5f), FVector(28.0f, LayerDepth, PeakHeight * 0.5f), FRotator(0.0f, 0.0f, FMath::Sin(PeakAlpha * PI * 2.0f) * 4.0f));
+			AddBoxInstance(BackdropMountainInstances, FVector(PeakX + 16.0f, FarRidgeY + LayerOffset + 22.0f, PeakHeight * 0.42f), FVector(18.0f, LayerDepth * 0.7f, PeakHeight * 0.42f), FRotator(0.0f, 0.0f, FMath::Cos(PeakAlpha * PI * 4.0f) * 7.0f));
+			AddBoxInstance(BackdropMountainInstances, FVector(PeakX - 20.0f, FarRidgeY + LayerOffset - 18.0f, PeakHeight * 0.36f), FVector(16.0f, LayerDepth * 0.6f, PeakHeight * 0.36f), FRotator(0.0f, 0.0f, FMath::Sin(PeakAlpha * PI * 6.0f) * 8.0f));
+			AddBoxInstance(CliffSnowInstances, FVector(PeakX, FarRidgeY + LayerOffset + 8.0f, SnowLine), FVector(11.0f, 6.0f, 1.0f));
+			AddBoxInstance(RockSpineInstances, FVector(PeakX + 10.0f, FarRidgeY + LayerOffset - 20.0f, SnowLine - 12.0f), FVector(4.0f, 5.0f, 9.0f), FRotator(0.0f, 0.0f, PeakAlpha * 24.0f));
+		}
+	}
+}
+
+void AParaglidePrototypeWorld::BuildAtmosphericBands()
+{
+	const FVector MistCenters[] = {
+		FVector(-260.0f, RidgeDistanceMeters - 40.0f, 24.0f),
+		FVector(-40.0f, RidgeDistanceMeters - 12.0f, 21.0f),
+		FVector(220.0f, RidgeDistanceMeters + 18.0f, 27.0f),
+		FVector(-160.0f, LandingZoneDistanceMeters - 120.0f, 18.0f),
+		FVector(180.0f, LandingZoneDistanceMeters - 90.0f, 20.0f),
+		FVector(0.0f, LandingZoneDistanceMeters + 210.0f, 23.0f)
+	};
+
+	for (const FVector& Center : MistCenters)
+	{
+		AddSphereInstance(MistBandInstances, Center, FVector(22.0f, 10.0f, 3.0f));
+		AddSphereInstance(MistBandInstances, Center + FVector(24.0f, -8.0f, 3.0f), FVector(14.0f, 6.0f, 2.4f));
+		AddSphereInstance(MistBandInstances, Center + FVector(-18.0f, 10.0f, -2.0f), FVector(12.0f, 5.0f, 2.0f));
 	}
 }
 

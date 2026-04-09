@@ -36,14 +36,18 @@ void AParaglidePlayerController::SetupInputComponent()
 
 	check(InputComponent);
 
-	InputComponent->BindKey(EKeys::A, IE_Pressed, this, &ThisClass::HandleWeightLeftPressed);
-	InputComponent->BindKey(EKeys::A, IE_Released, this, &ThisClass::HandleWeightLeftReleased);
+	InputComponent->BindKey(EKeys::LeftShift, IE_Pressed, this, &ThisClass::HandleWeightLeftPressed);
+	InputComponent->BindKey(EKeys::LeftShift, IE_Released, this, &ThisClass::HandleWeightLeftReleased);
 	InputComponent->BindKey(EKeys::S, IE_Pressed, this, &ThisClass::HandleLeftRearRiserPressed);
 	InputComponent->BindKey(EKeys::S, IE_Released, this, &ThisClass::HandleLeftRearRiserReleased);
 	InputComponent->BindKey(EKeys::D, IE_Pressed, this, &ThisClass::HandleLeftBrakePrimaryPressed);
 	InputComponent->BindKey(EKeys::D, IE_Released, this, &ThisClass::HandleLeftBrakePrimaryReleased);
 	InputComponent->BindKey(EKeys::F, IE_Pressed, this, &ThisClass::HandleLeftBrakeDeepPressed);
 	InputComponent->BindKey(EKeys::F, IE_Released, this, &ThisClass::HandleLeftBrakeDeepReleased);
+	InputComponent->BindKey(EKeys::G, IE_Pressed, this, &ThisClass::HandleSpeedBarStageOnePressed);
+	InputComponent->BindKey(EKeys::G, IE_Released, this, &ThisClass::HandleSpeedBarStageOneReleased);
+	InputComponent->BindKey(EKeys::H, IE_Pressed, this, &ThisClass::HandleSpeedBarStageTwoPressed);
+	InputComponent->BindKey(EKeys::H, IE_Released, this, &ThisClass::HandleSpeedBarStageTwoReleased);
 	InputComponent->BindKey(EKeys::SpaceBar, IE_Pressed, this, &ThisClass::HandleSpeedBarFallbackPressed);
 	InputComponent->BindKey(EKeys::SpaceBar, IE_Released, this, &ThisClass::HandleSpeedBarFallbackReleased);
 	InputComponent->BindKey(EKeys::J, IE_Pressed, this, &ThisClass::HandleRightBrakeDeepPressed);
@@ -52,10 +56,8 @@ void AParaglidePlayerController::SetupInputComponent()
 	InputComponent->BindKey(EKeys::K, IE_Released, this, &ThisClass::HandleRightBrakePrimaryReleased);
 	InputComponent->BindKey(EKeys::L, IE_Pressed, this, &ThisClass::HandleRightRearRiserPressed);
 	InputComponent->BindKey(EKeys::L, IE_Released, this, &ThisClass::HandleRightRearRiserReleased);
-	InputComponent->BindKey(EKeys::Semicolon, IE_Pressed, this, &ThisClass::HandleWeightRightPressed);
-	InputComponent->BindKey(EKeys::Semicolon, IE_Released, this, &ThisClass::HandleWeightRightReleased);
-	InputComponent->BindKey(EKeys::Apostrophe, IE_Pressed, this, &ThisClass::HandleWeightRightPressed);
-	InputComponent->BindKey(EKeys::Apostrophe, IE_Released, this, &ThisClass::HandleWeightRightReleased);
+	InputComponent->BindKey(EKeys::RightShift, IE_Pressed, this, &ThisClass::HandleWeightRightPressed);
+	InputComponent->BindKey(EKeys::RightShift, IE_Released, this, &ThisClass::HandleWeightRightReleased);
 	InputComponent->BindKey(EKeys::R, IE_Pressed, this, &ThisClass::HandleResetPressed);
 	InputComponent->BindKey(EKeys::Tab, IE_Pressed, this, &ThisClass::HandleHudTogglePressed);
 	InputComponent->BindKey(EKeys::One, IE_Pressed, this, &ThisClass::HandleScenario1Pressed);

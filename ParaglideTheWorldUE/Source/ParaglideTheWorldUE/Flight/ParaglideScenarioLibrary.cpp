@@ -57,8 +57,8 @@ namespace
 		Site.TerrainHeightMeters = 1485.0f;
 		Site.SpawnAglMeters = 140.0f;
 		Site.PrevailingWindHeadingDeg = 58.0f;
-		Site.WindSpeedKmh = 19.0f;
-		Site.BaseRidgeLiftMetersPerSecond = 1.9f;
+		Site.WindSpeedKmh = 21.0f;
+		Site.BaseRidgeLiftMetersPerSecond = 3.4f;
 		Site.RouteLengthKm = 16.0f;
 		Site.LaunchPositionMeters = FVector2D::ZeroVector;
 		Site.Ridge.bEnabled = true;
@@ -66,8 +66,8 @@ namespace
 		Site.Ridge.LengthMeters = 3300.0f;
 		Site.Ridge.WindwardDepthMeters = 650.0f;
 		Site.Ridge.LeeDepthMeters = 700.0f;
-		Site.Ridge.PeakLiftMetersPerSecond = 3.4f;
-		Site.Ridge.LeeSinkMetersPerSecond = 1.3f;
+		Site.Ridge.PeakLiftMetersPerSecond = 6.1f;
+		Site.Ridge.LeeSinkMetersPerSecond = 1.0f;
 		Site.LandingZone.bEnabled = true;
 		Site.LandingZone.PositionMeters = FVector2D(520.0f, 1650.0f);
 		Site.LandingZone.HeadingDeg = 58.0f;
@@ -77,21 +77,21 @@ namespace
 		FParaglideThermalSource ValleyThermal;
 		ValleyThermal.Id = TEXT("valley-mouth");
 		ValleyThermal.PositionMeters = FVector2D(900.0f, 1150.0f);
-		ValleyThermal.RadiusMeters = 430.0f;
-		ValleyThermal.CoreRadiusMeters = 150.0f;
-		ValleyThermal.LiftMetersPerSecond = 4.6f;
-		ValleyThermal.SinkRingMetersPerSecond = 0.28f;
-		ValleyThermal.DriftFactor = 0.24f;
+		ValleyThermal.RadiusMeters = 600.0f;
+		ValleyThermal.CoreRadiusMeters = 240.0f;
+		ValleyThermal.LiftMetersPerSecond = 8.4f;
+		ValleyThermal.SinkRingMetersPerSecond = 0.10f;
+		ValleyThermal.DriftFactor = 0.14f;
 		Site.Thermals.Add(ValleyThermal);
 
 		FParaglideThermalSource WaterfallThermal;
 		WaterfallThermal.Id = TEXT("waterfall-ribbon");
 		WaterfallThermal.PositionMeters = FVector2D(-450.0f, -420.0f);
-		WaterfallThermal.RadiusMeters = 360.0f;
-		WaterfallThermal.CoreRadiusMeters = 130.0f;
-		WaterfallThermal.LiftMetersPerSecond = 3.4f;
-		WaterfallThermal.SinkRingMetersPerSecond = 0.2f;
-		WaterfallThermal.DriftFactor = 0.18f;
+		WaterfallThermal.RadiusMeters = 460.0f;
+		WaterfallThermal.CoreRadiusMeters = 190.0f;
+		WaterfallThermal.LiftMetersPerSecond = 6.0f;
+		WaterfallThermal.SinkRingMetersPerSecond = 0.08f;
+		WaterfallThermal.DriftFactor = 0.12f;
 		Site.Thermals.Add(WaterfallThermal);
 
 		return Site;
@@ -166,8 +166,8 @@ namespace
 		Scenario.KeyOutputs = {TEXT("ridge lift"), TEXT("net vario"), TEXT("turn authority")};
 		Scenario.Site = MakeLauterbrunnenSite();
 		Scenario.Atmosphere.WindHeadingDeg = Scenario.Site.PrevailingWindHeadingDeg;
-		Scenario.Atmosphere.WindSpeedKmh = FMath::Max(Scenario.Site.WindSpeedKmh, 24.0f);
-		Scenario.Atmosphere.Turbulence = 0.1f;
+		Scenario.Atmosphere.WindSpeedKmh = FMath::Max(Scenario.Site.WindSpeedKmh, 29.0f);
+		Scenario.Atmosphere.Turbulence = 0.07f;
 
 		const float WindwardNormalHeadingDeg = Scenario.Site.Ridge.AxisHeadingDeg - 90.0f;
 		FParaglideFlightState State = MakeBaseState(Scenario.Site);
@@ -200,17 +200,17 @@ namespace
 		Scenario.KeyOutputs = {TEXT("thermal lift"), TEXT("sink ring"), TEXT("climb stability")};
 		Scenario.Site = MakeLauterbrunnenSite();
 		Scenario.Atmosphere.WindHeadingDeg = Scenario.Site.PrevailingWindHeadingDeg;
-		Scenario.Atmosphere.WindSpeedKmh = FMath::Max(Scenario.Site.WindSpeedKmh - 3.0f, 12.0f);
-		Scenario.Atmosphere.Turbulence = 0.08f;
+		Scenario.Atmosphere.WindSpeedKmh = FMath::Max(Scenario.Site.WindSpeedKmh - 2.0f, 14.0f);
+		Scenario.Atmosphere.Turbulence = 0.05f;
 
 		FParaglideFlightState State = MakeBaseState(Scenario.Site);
-		State = WithAgl(State, Scenario.Site.TerrainHeightMeters, 220.0f);
+		State = WithAgl(State, Scenario.Site.TerrainHeightMeters, 280.0f);
 		const FParaglideThermalSource& Thermal = Scenario.Site.Thermals[0];
-		State.PositionMeters = OffsetByHeading(Thermal.PositionMeters, Scenario.Site.PrevailingWindHeadingDeg + 90.0f, Thermal.RadiusMeters * 0.34f);
-		State.HeadingDeg = Scenario.Site.PrevailingWindHeadingDeg + 18.0f;
-		State.AirspeedKmh = 37.0f;
-		State.GroundSpeedKmh = 34.0f;
-		State.VerticalSpeedMetersPerSecond = 0.2f;
+		State.PositionMeters = OffsetByHeading(Thermal.PositionMeters, Scenario.Site.PrevailingWindHeadingDeg + 90.0f, Thermal.CoreRadiusMeters * 0.08f);
+		State.HeadingDeg = Scenario.Site.PrevailingWindHeadingDeg + 8.0f;
+		State.AirspeedKmh = 39.0f;
+		State.GroundSpeedKmh = 36.0f;
+		State.VerticalSpeedMetersPerSecond = 1.5f;
 		State.FlightPhase = EParaglideFlightPhase::Soaring;
 		Scenario.InitialFlightState = State;
 		return Scenario;

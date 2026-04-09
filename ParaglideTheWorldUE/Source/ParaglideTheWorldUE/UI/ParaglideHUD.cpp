@@ -53,8 +53,8 @@ void AParaglideHUD::DrawHUD()
 	const FString ScenarioLine = FormatScenarioHint(ScenarioName, ScenarioSummary);
 	const bool bLaunchControls = FlightState.FlightPhase == EParaglideFlightPhase::Launch;
 	const FString ControlsLine = bLaunchControls
-		? TEXT("A/; A-risers | S/L rear risers | D+F / J+K brakes | Space speed bar")
-		: TEXT("A/; weight shift | S/L C-steer | D+F / J+K brakes | Space speed bar");
+		? TEXT("LShift/RShift A-risers | S/L rear risers | D+F / J+K brakes | G/H or Space speed bar")
+		: TEXT("LShift/RShift weight shift | S/L C-steer | D+F / J+K brakes | G/H or Space speed bar");
 	const FString InputLine = FString::Printf(
 		TEXT("Front %.0f / %.0f | Rear %.0f / %.0f | Brake %.0f / %.0f | Shift %.0f%% | Bar %.0f%%"),
 		ControlState.LeftFrontRiserTravel * 100.0f,
@@ -66,8 +66,8 @@ void AParaglideHUD::DrawHUD()
 		ControlState.WeightShiftPosition * 100.0f,
 		ControlState.SpeedBarTravel * 100.0f);
 	const FString HintLine = bLaunchControls
-		? TEXT("Launch phase: A/; are A-risers. Once the wing is pressurized and flying, they become harness shift.")
-		: TEXT("Rear risers are cleaner than brakes on bar. Use scenario 2 to center lift and watch pressure/collapse live.");
+		? TEXT("Launch phase: Left Shift and Right Shift are A-risers. Once the wing is flying, they become harness shift.")
+		: TEXT("G/H are staged bar, Space is full bar, and scenario 2 is the fastest way to verify climb.");
 	const FString LiftLine = FString::Printf(
 		TEXT("Lift ridge %.2f | thermal %.2f | gust %.2f | sink %.2f"),
 		FlightState.RidgeLiftMetersPerSecond,

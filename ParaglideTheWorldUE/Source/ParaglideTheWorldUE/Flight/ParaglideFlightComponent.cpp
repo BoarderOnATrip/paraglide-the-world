@@ -104,6 +104,16 @@ namespace
 			Tuning.BaselineWing.MaxAirspeedKmh);
 	}
 
+	float ApproachAirspeedKmh(const float Current, const float Target, const float RiseStep, const float FallStep)
+	{
+		if (Current < Target)
+		{
+			return FMath::Min(Current + RiseStep, Target);
+		}
+
+		return FMath::Max(Current - FallStep, Target);
+	}
+
 	float GetTurnRateDegPerSecond(const float BankDeg, const float AirspeedKmh, const FParaglideFlightTuning& Tuning)
 	{
 		const float AirspeedMetersPerSecond = FMath::Max(
@@ -775,10 +785,10 @@ FParaglideFlightState UParaglideFlightComponent::StepFlightState(const FParaglid
 		CurrentState.FlightPhase == EParaglideFlightPhase::Launch
 			? DerivedControls.SymmetricFrontRiser * Tuning.Launch.FrontRiserGroundRunSpeedGainKmh
 			: 0.0f;
-	float AirspeedKmh = ApproachValue(
-		CurrentState.AirspeedKmh,
-		GetTargetAirspeedKmh(DerivedControls, AssistProfile, Tuning) + FrontRiserGroundRunGainKmh,
-		DeltaSeconds * Tuning.Controls.AirspeedResponseRate * AssistProfile.InputResponsiveness);
+	const float AirspeedTargetKmh = GetTargetAirspeedKmh(DerivedControls, AssistProfile, Tuning) + FrontRiserGroundRunGainKmh;
+	const float AirspeedRiseStep = DeltaSeconds * Tuning.Controls.AirspeedResponseRate * AssistProfile.InputResponsiveness * FMath::Lerp(1.0f, 1.45f, DerivedControls.SpeedBarTravel);
+	const float AirspeedFallStep = DeltaSeconds * Tuning.Controls.AirspeedResponseRate * 0.42f;
+	float AirspeedKmh = ApproachAirspeedKmh(CurrentState.AirspeedKmh, AirspeedTargetKmh, AirspeedRiseStep, AirspeedFallStep);
 	const float AngleOfAttackDeg = FMath::Clamp(
 		Tuning.Airfoil.TrimAngleOfAttackDeg +
 		DerivedControls.SymmetricBrake * Tuning.Airfoil.BrakeAngleOfAttackGainDeg +
@@ -891,12 +901,12 @@ FParaglideFlightState UParaglideFlightComponent::StepFlightState(const FParaglid
 		1.0f);
 	const float SignedTurnInput = GetSignedTurnInput(DerivedControls, CurrentState.SpinRateDegPerSecond);
 	const float DiveDrive = FMath::Clamp(
-		DerivedControls.SpeedBarTravel * 0.9f +
+		DerivedControls.SpeedBarTravel * 1.15f +
 		DerivedControls.SymmetricFrontRiser * 0.58f +
 		FMath::Clamp((FMath::Abs(CurrentState.BankDeg) - 35.0f) / 55.0f, 0.0f, 1.0f) * 0.45f +
 		FMath::Clamp((CurrentState.AirspeedKmh - Tuning.BaselineWing.TrimAirspeedKmh) / 18.0f, 0.0f, 1.0f) * 0.25f -
 		DerivedControls.SymmetricRearRiser * 0.18f -
-		DerivedControls.SymmetricBrake * 0.55f,
+		DerivedControls.SymmetricBrake * 0.48f,
 		0.0f,
 		1.0f);
 	const float DiveEnergy = FMath::Clamp(
@@ -1019,6 +1029,7 @@ FParaglideFlightState UParaglideFlightComponent::StepFlightState(const FParaglid
 
 	AirspeedKmh = FMath::Clamp(
 		AirspeedKmh +
+		DerivedControls.SpeedBarTravel * 4.0f +
 		DiveEnergy * Tuning.Maneuvers.DiveAirspeedGainKmh -
 		TumbleAmount * (4.0f + StallWarning * 6.0f) -
 		CollapseAverage * 5.4f -
@@ -1028,12 +1039,12 @@ FParaglideFlightState UParaglideFlightComponent::StepFlightState(const FParaglid
 
 	const float AirMassSinkMetersPerSecond = LeeSinkMetersPerSecond + ThermalSinkMetersPerSecond;
 	const float LiftEfficiency = FMath::Clamp(
-		0.24f +
-		WingInflation * 0.42f +
-		CanopyPressure * 0.34f -
-		CollapseAverage * 0.48f,
-		0.18f,
-		1.18f);
+		0.44f +
+		WingInflation * 0.50f +
+		CanopyPressure * 0.38f -
+		CollapseAverage * 0.22f,
+		0.40f,
+		1.35f);
 	const float LaunchLiftMetersPerSecond =
 		CurrentState.FlightPhase == EParaglideFlightPhase::Launch
 			? FMath::Clamp(
@@ -1043,6 +1054,10 @@ FParaglideFlightState UParaglideFlightComponent::StepFlightState(const FParaglid
 				Tuning.Launch.LaunchLiftMultiplier *
 				FMath::Clamp((AirspeedKmh - Tuning.BaselineWing.MinControllableAirspeedKmh * 0.7f) / 10.0f, 0.0f, 1.0f)
 			: 0.0f;
+	const float EffectiveThermalLiftMetersPerSecond =
+		ThermalLiftMetersPerSecond * (1.12f + (1.0f - DerivedControls.SymmetricBrake) * 0.08f);
+	const float EffectiveRidgeLiftMetersPerSecond =
+		RidgeLiftMetersPerSecond * (1.16f - DerivedControls.SymmetricBrake * 0.05f);
 	const float TotalSinkMetersPerSecond =
 		BaseSinkMetersPerSecond +
 		InducedTurnSinkMetersPerSecond +
@@ -1056,8 +1071,8 @@ FParaglideFlightState UParaglideFlightComponent::StepFlightState(const FParaglid
 		TumbleSinkMetersPerSecond +
 		AirMassSinkMetersPerSecond;
 	const float VerticalSpeedMetersPerSecond =
-		(ThermalLiftMetersPerSecond +
-		 RidgeLiftMetersPerSecond +
+		(EffectiveThermalLiftMetersPerSecond +
+		 EffectiveRidgeLiftMetersPerSecond +
 		 TurbulenceLiftMetersPerSecond +
 		 FlareLiftMetersPerSecond +
 		 LaunchLiftMetersPerSecond) * LiftEfficiency -

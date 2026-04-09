@@ -7,7 +7,9 @@
 
 class UArrowComponent;
 class UCameraComponent;
+class UMaterialInterface;
 class UParaglideFlightComponent;
+class UProceduralMeshComponent;
 class USceneComponent;
 class USpringArmComponent;
 class UStaticMesh;
@@ -66,6 +68,14 @@ private:
 
 	void SetVisualColor(UStaticMeshComponent* MeshComponent, const FLinearColor& Color) const;
 	void SetLineMeshTransform(UStaticMeshComponent* MeshComponent, const FVector& Start, const FVector& End, float Thickness) const;
+	void UpdateCanopyMesh(
+		const TArray<FVector>& LeadingEdgeAnchors,
+		const TArray<FVector>& MidChordAnchors,
+		const TArray<FVector>& TrailingEdgeAnchors,
+		float Pressure,
+		float Inflation,
+		float LeftCollapse,
+		float RightCollapse);
 	void UpdateVisualRig(float DeltaSeconds);
 
 private:
@@ -106,10 +116,34 @@ private:
 	TObjectPtr<UStaticMeshComponent> PilotRightLeg;
 
 	UPROPERTY(VisibleAnywhere, Category = "Paraglide")
+	TObjectPtr<UStaticMeshComponent> PilotHelmet;
+
+	UPROPERTY(VisibleAnywhere, Category = "Paraglide")
+	TObjectPtr<UStaticMeshComponent> PilotReservePack;
+
+	UPROPERTY(VisibleAnywhere, Category = "Paraglide")
+	TObjectPtr<UStaticMeshComponent> HarnessChest;
+
+	UPROPERTY(VisibleAnywhere, Category = "Paraglide")
+	TArray<TObjectPtr<UStaticMeshComponent>> LeadingEdgeCells;
+
+	UPROPERTY(VisibleAnywhere, Category = "Paraglide")
 	TArray<TObjectPtr<UStaticMeshComponent>> CanopyCells;
 
 	UPROPERTY(VisibleAnywhere, Category = "Paraglide")
+	TArray<TObjectPtr<UStaticMeshComponent>> TrailingEdgeCells;
+
+	UPROPERTY(VisibleAnywhere, Category = "Paraglide")
 	TArray<TObjectPtr<UStaticMeshComponent>> SuspensionLines;
+
+	UPROPERTY(VisibleAnywhere, Category = "Paraglide")
+	TObjectPtr<UProceduralMeshComponent> CanopyTopSurface;
+
+	UPROPERTY(VisibleAnywhere, Category = "Paraglide")
+	TObjectPtr<UProceduralMeshComponent> CanopyBottomSurface;
+
+	UPROPERTY(VisibleAnywhere, Category = "Paraglide")
+	TObjectPtr<UProceduralMeshComponent> CanopyEdgeSurface;
 
 	UPROPERTY(VisibleAnywhere, Category = "Paraglide")
 	TObjectPtr<USpringArmComponent> SpringArm;
@@ -119,4 +153,7 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = "Paraglide")
 	TObjectPtr<UParaglideFlightComponent> FlightComponent;
+
+	UPROPERTY()
+	TObjectPtr<UMaterialInterface> VertexColorMaterial;
 };

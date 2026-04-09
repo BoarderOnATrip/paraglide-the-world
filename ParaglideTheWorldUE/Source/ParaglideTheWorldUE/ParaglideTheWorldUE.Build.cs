@@ -15,7 +15,7 @@ public class ParaglideTheWorldUE : ModuleRules
 			Path.GetFullPath(Path.Combine(ModuleDirectory, ".."))
 		});
 	
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput" });
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput", "ProceduralMeshComponent" });
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });
 
