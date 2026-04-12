@@ -293,6 +293,76 @@ namespace
 		Scenario.InitialFlightState = State;
 		return Scenario;
 	}
+
+	FParaglideScenarioPreset MakeProximityRunScenario()
+	{
+		FParaglideScenarioPreset Scenario;
+		Scenario.Id = TEXT("proximity-run");
+		Scenario.Name = FText::FromString(TEXT("Proximity Run"));
+		Scenario.Summary = FText::FromString(TEXT("Low, fast ridge line for testing ground skim energy and precise terrain-following."));
+		Scenario.Setup = FText::FromString(TEXT("Already accelerated near the face, with just enough height to feel the low-pass cushion."));
+		Scenario.RecommendedInputs = FText::FromString(TEXT("Use bar and small coordinated inputs. Read the ground-effect and acro energy lines instead of yanking brakes."));
+		Scenario.KeyOutputs = {TEXT("ground effect"), TEXT("airspeed"), TEXT("acro energy")};
+		Scenario.Site = MakeLauterbrunnenSite();
+		Scenario.Atmosphere.WindHeadingDeg = Scenario.Site.PrevailingWindHeadingDeg;
+		Scenario.Atmosphere.WindSpeedKmh = 30.0f;
+		Scenario.Atmosphere.Turbulence = 0.09f;
+
+		const float WindwardNormalHeadingDeg = Scenario.Site.Ridge.AxisHeadingDeg - 90.0f;
+		FParaglideFlightState State = MakeBaseState(Scenario.Site);
+		State = WithAgl(State, Scenario.Site.TerrainHeightMeters, 11.0f);
+		const FVector2D AlongPosition = OffsetByHeading(
+			Scenario.Site.Ridge.PositionMeters,
+			Scenario.Site.Ridge.AxisHeadingDeg,
+			Scenario.Site.Ridge.LengthMeters * 0.08f);
+		State.PositionMeters = OffsetByHeading(
+			AlongPosition,
+			WindwardNormalHeadingDeg,
+			Scenario.Site.Ridge.WindwardDepthMeters * 0.24f);
+		State.HeadingDeg = Scenario.Site.Ridge.AxisHeadingDeg + 2.0f;
+		State.BankDeg = 10.0f;
+		State.PitchDeg = -18.0f;
+		State.AirspeedKmh = 54.0f;
+		State.GroundSpeedKmh = 58.0f;
+		State.VerticalSpeedMetersPerSecond = -0.4f;
+		State.DiveEnergy = 0.46f;
+		State.ManeuverEnergy = 0.18f;
+		State.FlightPhase = EParaglideFlightPhase::Soaring;
+		Scenario.InitialFlightState = State;
+		return Scenario;
+	}
+
+	FParaglideScenarioPreset MakeAcroEntryScenario()
+	{
+		FParaglideScenarioPreset Scenario;
+		Scenario.Id = TEXT("acro-entry");
+		Scenario.Name = FText::FromString(TEXT("Acro Entry"));
+		Scenario.Summary = FText::FromString(TEXT("High-energy setup for wingovers, aggressive reversals, and tumble entry testing."));
+		Scenario.Setup = FText::FromString(TEXT("Already diving with bank and surge built in, high enough that mistakes read clearly."));
+		Scenario.RecommendedInputs = FText::FromString(TEXT("Build a reversal rhythm with asymmetric brake and weight shift, then watch acro and tumble energy climb."));
+		Scenario.KeyOutputs = {TEXT("acro energy"), TEXT("tumble"), TEXT("load factor")};
+		Scenario.Site = MakeLauterbrunnenSite();
+		Scenario.Atmosphere.WindHeadingDeg = Scenario.Site.PrevailingWindHeadingDeg;
+		Scenario.Atmosphere.WindSpeedKmh = 18.0f;
+		Scenario.Atmosphere.Turbulence = 0.10f;
+
+		FParaglideFlightState State = MakeBaseState(Scenario.Site);
+		State = WithAgl(State, Scenario.Site.TerrainHeightMeters, 145.0f);
+		State.PositionMeters = FVector2D(240.0f, 620.0f);
+		State.HeadingDeg = Scenario.Site.PrevailingWindHeadingDeg + 36.0f;
+		State.BankDeg = 34.0f;
+		State.PitchDeg = -24.0f;
+		State.AirspeedKmh = 58.0f;
+		State.GroundSpeedKmh = 61.0f;
+		State.VerticalSpeedMetersPerSecond = -1.8f;
+		State.TurnRateDegPerSecond = 24.0f;
+		State.WingSurgeDeg = 13.0f;
+		State.DiveEnergy = 0.58f;
+		State.ManeuverEnergy = 0.44f;
+		State.FlightPhase = EParaglideFlightPhase::Soaring;
+		Scenario.InitialFlightState = State;
+		return Scenario;
+	}
 }
 
 const TArray<FParaglideScenarioPreset>& FParaglideScenarioLibrary::GetScenarioPresets()
@@ -303,6 +373,8 @@ const TArray<FParaglideScenarioPreset>& FParaglideScenarioLibrary::GetScenarioPr
 		MakeGlideTransitionScenario(),
 		MakeApproachScenario(),
 		MakeFlareScenario(),
+		MakeProximityRunScenario(),
+		MakeAcroEntryScenario(),
 	};
 
 	return Presets;

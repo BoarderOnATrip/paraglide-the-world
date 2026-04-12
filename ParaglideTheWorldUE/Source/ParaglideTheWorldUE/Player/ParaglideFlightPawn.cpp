@@ -525,25 +525,27 @@ void AParaglideFlightPawn::UpdateVisualRig(const float DeltaSeconds)
 	const float AngleOfAttack = State.AngleOfAttackDeg;
 	const float WingSurge = State.WingSurgeDeg;
 	const float DiveAmount = State.DiveEnergy;
+	const float ManeuverEnergy = State.ManeuverEnergy;
 	const float TumbleAmount = State.TumbleAmount;
 	const float LoadFactor = FMath::Clamp(State.LoadFactor, 1.0f, 2.8f);
+	const float GroundRush = FMath::Clamp((18.0f - State.GroundClearanceMeters) / 18.0f, 0.0f, 1.0f);
 	const float PressurePulse = Pressure * 6.0f + Inflation * 4.0f;
-	const float WingPulse = FMath::Sin(State.ElapsedSeconds * (1.2f + DiveAmount * 0.7f) + DeltaSeconds) * (2.0f + TumbleAmount * 4.0f + PressurePulse * 0.25f);
+	const float WingPulse = FMath::Sin(State.ElapsedSeconds * (1.2f + DiveAmount * 0.7f + ManeuverEnergy * 0.5f) + DeltaSeconds) * (2.0f + TumbleAmount * 4.0f + PressurePulse * 0.25f);
 
 	HarnessRig->SetRelativeLocation(FVector(
-		-158.0f - DiveAmount * 42.0f - SymmetricFrontRiser * 16.0f + SymmetricRearRiser * 10.0f + SpeedBarTravel * 26.0f + WingSurge * 1.8f,
+		-158.0f - DiveAmount * 42.0f - ManeuverEnergy * 18.0f - SymmetricFrontRiser * 16.0f + SymmetricRearRiser * 10.0f + SpeedBarTravel * 26.0f + WingSurge * 1.8f,
 		ControlState.WeightShiftPosition * 18.0f + BrakeDifferential * 12.0f + RearRiserDifferential * 18.0f + FrontRiserDifferential * 10.0f,
 		-176.0f - (LoadFactor - 1.0f) * 15.0f - SymmetricRearRiser * 5.0f + TumbleAmount * 18.0f + CollapseAverage * 16.0f));
 	HarnessRig->SetRelativeRotation(FRotator(
-		DiveAmount * 12.0f + SymmetricBrake * 10.0f + AngleOfAttack * 0.4f - SymmetricFrontRiser * 8.0f + SpeedBarTravel * 12.0f - State.FlareEffectiveness * 18.0f,
+		DiveAmount * 12.0f + ManeuverEnergy * 8.0f + SymmetricBrake * 10.0f + AngleOfAttack * 0.4f - SymmetricFrontRiser * 8.0f + SpeedBarTravel * 12.0f - State.FlareEffectiveness * 18.0f,
 		0.0f,
 		-State.BankDeg * 0.12f + ControlState.WeightShiftPosition * 8.0f + BrakeDifferential * 7.0f + RearRiserDifferential * 8.0f + CollapseDifferential * 6.0f));
 
-	PilotRig->SetRelativeLocation(FVector(-20.0f - SpeedBarTravel * 14.0f, 0.0f, -30.0f + TumbleAmount * 10.0f + CollapseAverage * 8.0f));
+	PilotRig->SetRelativeLocation(FVector(-20.0f - SpeedBarTravel * 14.0f - ManeuverEnergy * 8.0f, 0.0f, -30.0f + TumbleAmount * 10.0f + CollapseAverage * 8.0f));
 	PilotRig->SetRelativeRotation(FRotator(
-		12.0f + DiveAmount * 16.0f + SymmetricBrake * 16.0f + AngleOfAttack * 0.5f - SymmetricFrontRiser * 6.0f + SpeedBarTravel * 14.0f + TumbleAmount * 18.0f,
+		12.0f + DiveAmount * 16.0f + ManeuverEnergy * 10.0f + SymmetricBrake * 16.0f + AngleOfAttack * 0.5f - SymmetricFrontRiser * 6.0f + SpeedBarTravel * 14.0f + TumbleAmount * 18.0f,
 		0.0f,
-		-State.BankDeg * 0.18f - ControlState.WeightShiftPosition * 10.0f - BrakeDifferential * 12.0f + RearRiserDifferential * 7.0f + CollapseDifferential * 8.0f));
+		-State.BankDeg * 0.18f - ControlState.WeightShiftPosition * 10.0f - BrakeDifferential * 12.0f + RearRiserDifferential * 7.0f + CollapseDifferential * 8.0f - ManeuverEnergy * 6.0f * FMath::Sign(BrakeDifferential + RearRiserDifferential + ControlState.WeightShiftPosition)));
 
 	if (PilotHelmet)
 	{
@@ -591,25 +593,25 @@ void AParaglideFlightPawn::UpdateVisualRig(const float DeltaSeconds)
 
 	if (Camera)
 	{
-		Camera->SetFieldOfView(74.0f + DiveAmount * 10.0f + SpeedBarTravel * 7.0f - SymmetricBrake * 3.0f + TumbleAmount * 4.0f);
+		Camera->SetFieldOfView(74.0f + DiveAmount * 10.0f + ManeuverEnergy * 7.0f + SpeedBarTravel * 7.0f + GroundRush * 4.0f - SymmetricBrake * 3.0f + TumbleAmount * 4.0f);
 	}
 
 	if (SpringArm)
 	{
-		SpringArm->TargetArmLength = 1780.0f + DiveAmount * 180.0f + SpeedBarTravel * 130.0f - SymmetricBrake * 40.0f;
-		SpringArm->SocketOffset = FVector(0.0f, 0.0f, 250.0f + DiveAmount * 28.0f);
-		SpringArm->TargetOffset = FVector(-280.0f - DiveAmount * 85.0f, 0.0f, 130.0f - SymmetricBrake * 18.0f);
-		SpringArm->SetRelativeRotation(FRotator(-18.0f - DiveAmount * 8.0f + State.StallWarning * 3.0f + TumbleAmount * 6.0f, 0.0f, 0.0f));
+		SpringArm->TargetArmLength = 1780.0f + DiveAmount * 180.0f + ManeuverEnergy * 120.0f + SpeedBarTravel * 130.0f - SymmetricBrake * 40.0f - GroundRush * 150.0f;
+		SpringArm->SocketOffset = FVector(0.0f, 0.0f, 250.0f + DiveAmount * 28.0f - GroundRush * 18.0f);
+		SpringArm->TargetOffset = FVector(-280.0f - DiveAmount * 85.0f - ManeuverEnergy * 32.0f, 0.0f, 130.0f - SymmetricBrake * 18.0f - GroundRush * 30.0f);
+		SpringArm->SetRelativeRotation(FRotator(-18.0f - DiveAmount * 8.0f - ManeuverEnergy * 4.0f - GroundRush * 5.0f + State.StallWarning * 3.0f + TumbleAmount * 6.0f, 0.0f, 0.0f));
 	}
 
 	CanopyRig->SetRelativeLocation(FVector(
-		144.0f + DiveAmount * 26.0f - SymmetricFrontRiser * 28.0f - SymmetricRearRiser * 10.0f - SpeedBarTravel * 36.0f + WingSurge * 3.2f,
+		144.0f + DiveAmount * 26.0f + ManeuverEnergy * 12.0f - SymmetricFrontRiser * 28.0f - SymmetricRearRiser * 10.0f - SpeedBarTravel * 36.0f + WingSurge * 3.2f,
 		ControlState.WeightShiftPosition * 16.0f + BrakeDifferential * 18.0f + RearRiserDifferential * 24.0f + FrontRiserDifferential * 12.0f + CollapseDifferential * 26.0f,
-		340.0f + Inflation * 22.0f + Pressure * 12.0f + (LoadFactor - 1.0f) * 14.0f + SymmetricRearRiser * 9.0f + WingPulse - CollapseAverage * 28.0f + SpeedBarTravel * 20.0f));
+		340.0f + Inflation * 22.0f + Pressure * 12.0f + (LoadFactor - 1.0f) * 14.0f + SymmetricRearRiser * 9.0f + WingPulse - CollapseAverage * 28.0f + SpeedBarTravel * 20.0f + ManeuverEnergy * 10.0f));
 	CanopyRig->SetRelativeRotation(FRotator(
-		-2.0f - DiveAmount * 12.0f - SymmetricFrontRiser * 14.0f + SymmetricBrake * 10.0f + AngleOfAttack * 0.35f + SpeedBarTravel * 12.0f + TumbleAmount * 10.0f - WingSurge * 0.7f,
+		-2.0f - DiveAmount * 12.0f - ManeuverEnergy * 10.0f - SymmetricFrontRiser * 14.0f + SymmetricBrake * 10.0f + AngleOfAttack * 0.35f + SpeedBarTravel * 12.0f + TumbleAmount * 10.0f - WingSurge * 0.7f,
 		0.0f,
-		-State.BankDeg * 0.14f - ControlState.WeightShiftPosition * 6.0f - BrakeDifferential * 4.0f + RearRiserDifferential * 5.0f + CollapseDifferential * 9.0f));
+		-State.BankDeg * 0.14f - ControlState.WeightShiftPosition * 6.0f - BrakeDifferential * 4.0f + RearRiserDifferential * 5.0f + CollapseDifferential * 9.0f - ManeuverEnergy * 8.0f * FMath::Sign(BrakeDifferential + RearRiserDifferential)));
 
 	TArray<FVector> CellAnchorPoints;
 	TArray<FVector> LeadingEdgeAnchors;
@@ -652,6 +654,7 @@ void AParaglideFlightPawn::UpdateVisualRig(const float DeltaSeconds)
 		const float CellPitch =
 			-1.0f -
 			DiveAmount * 8.0f -
+			ManeuverEnergy * 5.0f -
 			SymmetricFrontRiser * 10.0f +
 			SymmetricBrake * (9.0f + SpanAbs * 4.0f) +
 			AngleOfAttack * 0.32f +

@@ -80,6 +80,7 @@ public:
 
 private:
 	void RecenterToActivePawn();
+	void RefreshAtmosphereMode();
 	void ClearInstances();
 	void BuildLaunchDeck();
 	void BuildRidgeReference();

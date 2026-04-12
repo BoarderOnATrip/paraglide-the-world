@@ -9,16 +9,16 @@ struct FParaglideFlightTuning
 		float TrimAirspeedKmh = 39.0f;
 		float MinControllableAirspeedKmh = 18.0f;
 		float MaxAirspeedKmh = 62.0f;
-		float BaselineSinkMetersPerSecond = 0.72f;
-		float SpeedToSinkCurveDivisor = 290.0f;
+		float BaselineSinkMetersPerSecond = 0.58f;
+		float SpeedToSinkCurveDivisor = 320.0f;
 		float TurnRateMinAirspeedMetersPerSecond = 6.0f;
 		float FlareMinAirspeedKmh = 9.0f;
 	} BaselineWing;
 
 	struct FControls
 	{
-		float SpeedBarAirspeedGainKmh = 30.0f;
-		float FrontRiserAirspeedGainKmh = 11.0f;
+		float SpeedBarAirspeedGainKmh = 34.0f;
+		float FrontRiserAirspeedGainKmh = 13.0f;
 		float SymmetricBrakeAirspeedLossKmh = 11.0f;
 		float DeepBrakeAirspeedLossKmh = 5.5f;
 		float RearRiserAirspeedLossKmh = 3.2f;
@@ -32,8 +32,8 @@ struct FParaglideFlightTuning
 		float RearRiserSinkLinearMetersPerSecond = 0.10f;
 		float RearRiserSinkQuadraticMetersPerSecond = 0.15f;
 		float RearRiserStallContribution = 0.16f;
-		float AirspeedResponseRate = 24.0f;
-		float BankResponseRate = 30.0f;
+		float AirspeedResponseRate = 28.0f;
+		float BankResponseRate = 32.0f;
 		float CoordinationBankResponseGain = 34.0f;
 	} Controls;
 
@@ -124,6 +124,19 @@ struct FParaglideFlightTuning
 		float PitchResponseRate = 40.0f;
 	} Attitude;
 
+	struct FProximity
+	{
+		float GroundEffectStartHeightMeters = 18.0f;
+		float GroundEffectFullStrengthHeightMeters = 2.8f;
+		float GroundEffectLiftMetersPerSecond = 1.55f;
+		float GroundEffectSinkReliefMetersPerSecond = 0.60f;
+		float GroundEffectPressureGain = 0.22f;
+		float GroundEffectSpeedThresholdKmh = 30.0f;
+		float GroundEffectSpeedRangeKmh = 16.0f;
+		float GroundSkimEnergyBonus = 0.35f;
+		float GroundRushCameraPitchGainDeg = 5.0f;
+	} Proximity;
+
 	struct FAirfoil
 	{
 		float TrimAngleOfAttackDeg = 6.4f;
@@ -168,21 +181,30 @@ struct FParaglideFlightTuning
 	struct FManeuvers
 	{
 		float DiveBuildRate = 2.1f;
-		float DiveRecoveryRate = 1.12f;
+		float DiveRecoveryRate = 0.86f;
 		float DiveAirspeedGainKmh = 28.0f;
 		float DivePitchGainDeg = 16.0f;
 		float DiveSinkMultiplier = 1.28f;
 		float DiveTurnRateBonus = 0.32f;
-		float AcroBankLimitDeg = 112.0f;
-		float AcroBankBonusDeg = 32.0f;
+		float WingoverBuildRate = 2.25f;
+		float WingoverRecoveryRate = 0.86f;
+		float WingoverReversalWindowDeg = 42.0f;
+		float WingoverBankBonusDeg = 28.0f;
+		float WingoverTurnRateBonus = 0.30f;
+		float WingoverPitchGainDeg = 22.0f;
+		float AcroBankLimitDeg = 124.0f;
+		float AcroBankBonusDeg = 40.0f;
 		float SpiralSinkMultiplier = 2.15f;
 		float TumbleTriggerStall = 0.82f;
 		float TumbleTriggerAsymmetry = 0.58f;
-		float TumbleBuildRate = 2.4f;
+		float TumbleTriggerDive = 0.44f;
+		float TumbleTriggerWingover = 0.52f;
+		float TumbleTriggerSurgeDeg = 8.0f;
+		float TumbleBuildRate = 2.7f;
 		float TumbleRecoveryRate = 1.6f;
 		float TumbleRollRateDegPerSecond = 520.0f;
-		float TumblePitchLimitDeg = 74.0f;
-		float TumbleHeadingRateDegPerSecond = 155.0f;
+		float TumblePitchLimitDeg = 132.0f;
+		float TumbleHeadingRateDegPerSecond = 175.0f;
 		float TumbleSinkMultiplier = 5.8f;
 	} Maneuvers;
 

@@ -72,6 +72,8 @@ private:
 	void HandleScenario3Pressed();
 	void HandleScenario4Pressed();
 	void HandleScenario5Pressed();
+	void HandleScenario6Pressed();
+	void HandleScenario7Pressed();
 	void HandleScenarioIndexPressed(int32 ScenarioIndex);
 	void UpdateDerivedControlState();
 };

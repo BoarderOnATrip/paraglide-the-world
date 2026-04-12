@@ -5,11 +5,13 @@
 #include "Components/DirectionalLightComponent.h"
 #include "Components/ExponentialHeightFogComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Components/LightComponentBase.h"
 #include "Components/SceneComponent.h"
 #include "Components/SkyAtmosphereComponent.h"
 #include "Components/SkyLightComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "Engine/StaticMesh.h"
+#include "EngineUtils.h"
 #include "Kismet/GameplayStatics.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -18,6 +20,46 @@ namespace
 	FVector MeterToWorld(const FVector& Value, const float WorldScale)
 	{
 		return Value * WorldScale;
+	}
+
+	template <typename TComponent, typename TPredicate>
+	bool HasActiveExternalComponent(const UWorld* World, const AActor* IgnoredOwner, TPredicate&& Predicate)
+	{
+		if (World == nullptr)
+		{
+			return false;
+		}
+
+		for (TActorIterator<AActor> ActorIt(World); ActorIt; ++ActorIt)
+		{
+			AActor* Actor = *ActorIt;
+			if (Actor == nullptr || Actor == IgnoredOwner)
+			{
+				continue;
+			}
+
+			TInlineComponentArray<TComponent*> Components(Actor);
+			Actor->GetComponents(Components);
+			for (TComponent* Component : Components)
+			{
+				if (Component != nullptr && Predicate(Component))
+				{
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	bool IsActiveVisibleComponent(const UActorComponent* Component)
+	{
+		return Component != nullptr && Component->IsRegistered() && Component->IsActive();
+	}
+
+	bool IsActiveVisibleSceneComponent(const USceneComponent* Component)
+	{
+		return IsActiveVisibleComponent(Component) && Component->IsVisible();
 	}
 }
 
@@ -302,9 +344,10 @@ void AParaglidePrototypeWorld::BeginPlay()
 {
 	Super::BeginPlay();
 
+	RefreshAtmosphereMode();
 	RecenterToActivePawn();
 	RebuildPrototypeWorld();
-	if (SkyLight != nullptr)
+	if (SkyLight != nullptr && SkyLight->IsVisible())
 	{
 		SkyLight->RecaptureSky();
 	}
@@ -331,7 +374,60 @@ void AParaglidePrototypeWorld::Tick(float DeltaSeconds)
 void AParaglidePrototypeWorld::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
+	RefreshAtmosphereMode();
 	RebuildPrototypeWorld();
+}
+
+void AParaglidePrototypeWorld::RefreshAtmosphereMode()
+{
+	UWorld* World = GetWorld();
+	if (World == nullptr)
+	{
+		return;
+	}
+
+	const bool bHasExternalDirectionalLight = HasActiveExternalComponent<UDirectionalLightComponent>(World, this, [](const UDirectionalLightComponent* Component)
+	{
+		return IsActiveVisibleSceneComponent(Component) && Component->bAffectsWorld;
+	});
+	const bool bHasExternalSkyLight = HasActiveExternalComponent<USkyLightComponent>(World, this, [](const USkyLightComponent* Component)
+	{
+		return IsActiveVisibleSceneComponent(Component) && Component->bAffectsWorld;
+	});
+	const bool bHasExternalHeightFog = HasActiveExternalComponent<UExponentialHeightFogComponent>(World, this, [](const UExponentialHeightFogComponent* Component)
+	{
+		return IsActiveVisibleSceneComponent(Component);
+	});
+	const bool bHasExternalSkyAtmosphere = HasActiveExternalComponent<USkyAtmosphereComponent>(World, this, [](const USkyAtmosphereComponent* Component)
+	{
+		return IsActiveVisibleSceneComponent(Component);
+	});
+
+	if (SunLight != nullptr)
+	{
+		SunLight->SetVisibility(!bHasExternalDirectionalLight, true);
+		SunLight->bAffectsWorld = !bHasExternalDirectionalLight;
+		SunLight->MarkRenderStateDirty();
+	}
+
+	if (SkyLight != nullptr)
+	{
+		SkyLight->SetVisibility(!bHasExternalSkyLight, true);
+		SkyLight->bAffectsWorld = !bHasExternalSkyLight;
+		SkyLight->MarkRenderStateDirty();
+	}
+
+	if (HeightFog != nullptr)
+	{
+		HeightFog->SetVisibility(!bHasExternalHeightFog, true);
+		HeightFog->SetComponentTickEnabled(!bHasExternalHeightFog);
+	}
+
+	if (SkyAtmosphere != nullptr)
+	{
+		SkyAtmosphere->SetVisibility(!bHasExternalSkyAtmosphere, true);
+		SkyAtmosphere->SetComponentTickEnabled(!bHasExternalSkyAtmosphere);
+	}
 }
 
 void AParaglidePrototypeWorld::RebuildPrototypeWorld()

@@ -65,6 +65,8 @@ void AParaglidePlayerController::SetupInputComponent()
 	InputComponent->BindKey(EKeys::Three, IE_Pressed, this, &ThisClass::HandleScenario3Pressed);
 	InputComponent->BindKey(EKeys::Four, IE_Pressed, this, &ThisClass::HandleScenario4Pressed);
 	InputComponent->BindKey(EKeys::Five, IE_Pressed, this, &ThisClass::HandleScenario5Pressed);
+	InputComponent->BindKey(EKeys::Six, IE_Pressed, this, &ThisClass::HandleScenario6Pressed);
+	InputComponent->BindKey(EKeys::Seven, IE_Pressed, this, &ThisClass::HandleScenario7Pressed);
 }
 
 void AParaglidePlayerController::OnPossess(APawn* InPawn)
@@ -332,6 +334,16 @@ void AParaglidePlayerController::HandleScenario4Pressed()
 void AParaglidePlayerController::HandleScenario5Pressed()
 {
 	HandleScenarioIndexPressed(4);
+}
+
+void AParaglidePlayerController::HandleScenario6Pressed()
+{
+	HandleScenarioIndexPressed(5);
+}
+
+void AParaglidePlayerController::HandleScenario7Pressed()
+{
+	HandleScenarioIndexPressed(6);
 }
 
 void AParaglidePlayerController::HandleScenarioIndexPressed(int32 ScenarioIndex)
