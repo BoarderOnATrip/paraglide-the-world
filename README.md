@@ -32,6 +32,7 @@ This repository is still in an early transition phase:
 - `docs/game-design.md`: game loop, progression, and experience goals
 - `docs/physics-tuning-sheet.md`: first-pass flight mechanics, tuning targets, and scenario checks
 - `docs/technical-architecture.md`: stack direction, production risks, and build phases
+- `docs/unreal-gaussian-splatting-ingest.md`: how to source and import the first Unreal Gaussian-splat destination
 
 ## Run locally
 
