@@ -8,7 +8,7 @@
 class AParaglidePrototypeWorld;
 class UParaglideDestinationPack;
 
-UCLASS()
+UCLASS(Config=Game, DefaultConfig)
 class PARAGLIDETHEWORLDUE_API AParaglideGameMode : public AGameModeBase
 {
 	GENERATED_BODY()
@@ -30,10 +30,10 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "Paraglide|World")
 	TSubclassOf<AActor> PresentationActorClass;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Paraglide|World")
+	UPROPERTY(Config, EditDefaultsOnly, Category = "Paraglide|World")
 	TSoftObjectPtr<UParaglideDestinationPack> DefaultDestinationPack;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Paraglide|World")
+	UPROPERTY(Config, EditDefaultsOnly, Category = "Paraglide|World")
 	EParaglideWorldPresentationMode PreferredPresentationMode = EParaglideWorldPresentationMode::Automatic;
 
 	UPROPERTY()

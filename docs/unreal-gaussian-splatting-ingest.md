@@ -108,10 +108,13 @@ Public sample source:
 - XVERSE's public demo folder currently exposes `demo_fox_gs.ply` and `demo_office_gs.ply`.
 - These are directly downloadable without login and are good enough to validate import, actor spawning, and runtime presentation.
 - They are not a complete destination-pack source because they do not include a matching `GLTF` collision mesh.
+- NVIDIA's public `vk_gaussian_splatting` sample set also exposes real-place splats like `fountain_place.zip` and `fountain_sindelfingen.zip`.
+- Those are larger, but they are better first destination candidates because they are actual places instead of isolated objects.
 
 Repo helper:
 
 - `tools/download-public-gaussian-splat-sample.sh`
+- `tools/import-public-gaussian-destination.sh`
 
 Example:
 
@@ -120,6 +123,7 @@ tools/download-public-gaussian-splat-sample.sh
 tools/download-public-gaussian-splat-sample.sh demo-office
 tools/import-unreal-gaussian-splat-sample.sh
 tools/create-unreal-gaussian-destination-pack.sh
+tools/import-public-gaussian-destination.sh fountain-place
 ```
 
 Verified sample:
@@ -202,6 +206,7 @@ For the vendored `NanoGS` path, the repo now has a complete public-sample valida
 1. `tools/download-public-gaussian-splat-sample.sh`
 2. `tools/import-unreal-gaussian-splat-sample.sh`
 3. `tools/create-unreal-gaussian-destination-pack.sh`
+4. `tools/import-public-gaussian-destination.sh`
 
 Current validated assets:
 
@@ -211,6 +216,20 @@ Current validated assets:
   - `/Game/Destinations/Samples/PTW_DemoFoxDestinationPack.PTW_DemoFoxDestinationPack`
 
 This specific sample is for pipeline validation only. It is not a playable terrain destination.
+
+Current validated real-location sample:
+
+- imported Gaussian asset:
+  - `/Game/GaussianSplats/Public/fountain_place.fountain_place`
+- generated destination pack:
+  - `/Game/Destinations/Public/PTW_FountainPlaceDestinationPack.PTW_FountainPlaceDestinationPack`
+- default game-mode config now points to that destination pack in `ParaglideTheWorldUE/Config/DefaultGame.ini`
+
+Practical result:
+
+- the Unreal project can now ingest a public real-place `.ply`
+- wrap it in a destination pack
+- and activate it without manual editor changes
 
 ## Collision guidance
 

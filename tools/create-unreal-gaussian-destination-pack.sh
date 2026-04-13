@@ -10,6 +10,7 @@ editor_cmd="/Users/Shared/Epic Games/UE_5.7/Engine/Binaries/Mac/UnrealEditor-Cmd
 source_asset_reference="${1:-/Game/GaussianSplats/Samples/demo_fox_gs.demo_fox_gs}"
 destination_path="${2:-/Game/Destinations/Samples}"
 destination_name="${3:-PTW_DemoFoxDestinationPack}"
+set_as_default="${4:-${PTW_SET_AS_DEFAULT:-0}}"
 
 if [[ ! -x "$editor_cmd" ]]; then
   echo "UnrealEditor-Cmd not found: $editor_cmd" >&2
@@ -19,6 +20,7 @@ fi
 export PTW_GS_SOURCE_ASSET="$source_asset_reference"
 export PTW_DEST_PACK_PATH="$destination_path"
 export PTW_DEST_PACK_NAME="$destination_name"
+export PTW_SET_AS_DEFAULT="$set_as_default"
 
 echo "Creating destination pack ${PTW_DEST_PACK_PATH}/${PTW_DEST_PACK_NAME} from ${PTW_GS_SOURCE_ASSET}"
 "$editor_cmd" "$project_path" \

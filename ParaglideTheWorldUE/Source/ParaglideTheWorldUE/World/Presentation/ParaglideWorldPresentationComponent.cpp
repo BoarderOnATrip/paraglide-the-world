@@ -46,17 +46,17 @@ bool UParaglideWorldPresentationComponent::ActivateHybridPath()
 {
 	int32 LoadedChunkCount = 0;
 	const bool bHasGaussianPlaceholder = BuildGaussianSplatPlaceholderPresentation(LoadedChunkCount);
-	if (bHasGaussianPlaceholder)
-	{
-		ReleaseProceduralFallbackPresentation();
-	}
-	const bool bBuiltFallback = bHasGaussianPlaceholder ? false : BuildProceduralFallbackPresentation();
+	const bool bBuiltFallback = BuildProceduralFallbackPresentation();
+	const EParaglideWorldPresentationMode RuntimeMode =
+		(bHasGaussianPlaceholder && bBuiltFallback)
+			? EParaglideWorldPresentationMode::Hybrid
+			: (bHasGaussianPlaceholder ? EParaglideWorldPresentationMode::GaussianSplatPlaceholder : EParaglideWorldPresentationMode::ProceduralFallback);
 	UpdateReadinessFlags(
 		PresentationMode,
-		bHasGaussianPlaceholder ? EParaglideWorldPresentationMode::Hybrid : EParaglideWorldPresentationMode::ProceduralFallback,
+		RuntimeMode,
 		bBuiltFallback,
 		bHasGaussianPlaceholder,
-		bHasGaussianPlaceholder,
+		bHasGaussianPlaceholder || bBuiltFallback,
 		Readiness.TotalChunkCount,
 		Readiness.DeclaredGaussianChunkCount,
 		SpawnedGaussianActors.Num(),
@@ -161,15 +161,18 @@ void UParaglideWorldPresentationComponent::RefreshPresentationPath()
 		break;
 	case EParaglideWorldPresentationMode::Hybrid:
 		bGaussianPlaceholderReady = BuildGaussianSplatPlaceholderPresentation(LoadedChunkCount);
-		if (SpawnedGaussianActors.Num() > 0)
+		bProceduralReady = BuildProceduralFallbackPresentation();
+		if (SpawnedGaussianActors.Num() > 0 && bProceduralReady)
 		{
-			ReleaseProceduralFallbackPresentation();
 			RuntimeMode = EParaglideWorldPresentationMode::Hybrid;
 			bSupportsSelectedMode = true;
 		}
+		else if (SpawnedGaussianActors.Num() > 0)
+		{
+			RuntimeMode = EParaglideWorldPresentationMode::GaussianSplatPlaceholder;
+		}
 		else
 		{
-			bProceduralReady = BuildProceduralFallbackPresentation();
 			RuntimeMode = EParaglideWorldPresentationMode::ProceduralFallback;
 		}
 		break;
