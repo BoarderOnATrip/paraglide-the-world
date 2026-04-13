@@ -3,9 +3,11 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
 #include "ParaglideTheWorldUE/Flight/ParaglideFlightTypes.h"
+#include "ParaglideTheWorldUE/World/Presentation/ParaglideWorldPresentationTypes.h"
 #include "ParaglidePlayerController.generated.h"
 
 class AParaglideFlightPawn;
+class AParaglideWorldPresentationActor;
 
 UCLASS()
 class PARAGLIDETHEWORLDUE_API AParaglidePlayerController : public APlayerController
@@ -74,6 +76,11 @@ private:
 	void HandleScenario5Pressed();
 	void HandleScenario6Pressed();
 	void HandleScenario7Pressed();
+	void HandlePresentationProceduralPressed();
+	void HandlePresentationHybridPressed();
+	void HandlePresentationGaussianPressed();
 	void HandleScenarioIndexPressed(int32 ScenarioIndex);
 	void UpdateDerivedControlState();
+	AParaglideWorldPresentationActor* GetPresentationActor() const;
+	void SetPresentationMode(EParaglideWorldPresentationMode NewMode);
 };

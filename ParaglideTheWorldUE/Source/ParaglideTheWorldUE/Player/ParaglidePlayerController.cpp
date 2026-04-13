@@ -1,7 +1,10 @@
 #include "ParaglidePlayerController.h"
 
 #include "Engine/Engine.h"
+#include "EngineUtils.h"
 #include "ParaglideTheWorldUE/Player/ParaglideFlightPawn.h"
+#include "ParaglideTheWorldUE/World/Presentation/ParaglideWorldPresentationActor.h"
+#include "ParaglideTheWorldUE/World/Presentation/ParaglideWorldPresentationTypes.h"
 #include "GameFramework/Pawn.h"
 #include "Components/InputComponent.h"
 #include "InputCoreTypes.h"
@@ -67,6 +70,9 @@ void AParaglidePlayerController::SetupInputComponent()
 	InputComponent->BindKey(EKeys::Five, IE_Pressed, this, &ThisClass::HandleScenario5Pressed);
 	InputComponent->BindKey(EKeys::Six, IE_Pressed, this, &ThisClass::HandleScenario6Pressed);
 	InputComponent->BindKey(EKeys::Seven, IE_Pressed, this, &ThisClass::HandleScenario7Pressed);
+	InputComponent->BindKey(EKeys::Eight, IE_Pressed, this, &ThisClass::HandlePresentationProceduralPressed);
+	InputComponent->BindKey(EKeys::Nine, IE_Pressed, this, &ThisClass::HandlePresentationHybridPressed);
+	InputComponent->BindKey(EKeys::Zero, IE_Pressed, this, &ThisClass::HandlePresentationGaussianPressed);
 }
 
 void AParaglidePlayerController::OnPossess(APawn* InPawn)
@@ -346,10 +352,72 @@ void AParaglidePlayerController::HandleScenario7Pressed()
 	HandleScenarioIndexPressed(6);
 }
 
+void AParaglidePlayerController::HandlePresentationProceduralPressed()
+{
+	SetPresentationMode(EParaglideWorldPresentationMode::ProceduralFallback);
+}
+
+void AParaglidePlayerController::HandlePresentationHybridPressed()
+{
+	SetPresentationMode(EParaglideWorldPresentationMode::Hybrid);
+}
+
+void AParaglidePlayerController::HandlePresentationGaussianPressed()
+{
+	SetPresentationMode(EParaglideWorldPresentationMode::GaussianSplatPlaceholder);
+}
+
 void AParaglidePlayerController::HandleScenarioIndexPressed(int32 ScenarioIndex)
 {
 	if (AParaglideFlightPawn* FlightPawn = GetParaglideFlightPawn())
 	{
 		FlightPawn->SelectScenarioByIndex(ScenarioIndex);
+	}
+}
+
+AParaglideWorldPresentationActor* AParaglidePlayerController::GetPresentationActor() const
+{
+	if (UWorld* World = GetWorld())
+	{
+		for (TActorIterator<AParaglideWorldPresentationActor> It(World); It; ++It)
+		{
+			return *It;
+		}
+	}
+
+	return nullptr;
+}
+
+void AParaglidePlayerController::SetPresentationMode(const EParaglideWorldPresentationMode NewMode)
+{
+	if (AParaglideWorldPresentationActor* PresentationActor = GetPresentationActor())
+	{
+		PresentationActor->SetPresentationMode(NewMode);
+		PresentationActor->RefreshPresentation();
+
+		if (GEngine != nullptr)
+		{
+			const TCHAR* ModeLabel = TEXT("Procedural");
+			switch (NewMode)
+			{
+			case EParaglideWorldPresentationMode::Hybrid:
+				ModeLabel = TEXT("Hybrid");
+				break;
+			case EParaglideWorldPresentationMode::GaussianSplatPlaceholder:
+				ModeLabel = TEXT("Gaussian");
+				break;
+			case EParaglideWorldPresentationMode::ProceduralFallback:
+			case EParaglideWorldPresentationMode::Automatic:
+			default:
+				ModeLabel = TEXT("Procedural");
+				break;
+			}
+
+			GEngine->AddOnScreenDebugMessage(
+				104,
+				5.0f,
+				FColor(120, 220, 255),
+				FString::Printf(TEXT("World mode: %s"), ModeLabel));
+		}
 	}
 }

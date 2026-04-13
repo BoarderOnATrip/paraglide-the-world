@@ -186,7 +186,7 @@ void AParaglideHUD::DrawHUD()
 	DrawTextLine(58.0f, Canvas->ClipY - 174.0f, ControlsLine, FLinearColor(0.92f, 0.96f, 1.0f, 1.0f), 0.9f);
 	DrawTextLine(58.0f, Canvas->ClipY - 142.0f, InputLine, FLinearColor(0.84f, 0.93f, 1.0f, 1.0f), 0.84f);
 	DrawTextLine(58.0f, Canvas->ClipY - 110.0f, HintLine, FLinearColor(0.82f, 0.9f, 1.0f, 1.0f), 0.81f);
-	DrawTextLine(58.0f, Canvas->ClipY - 78.0f, TEXT("1-7 scenarios | R reset | Tab HUD"), FLinearColor(0.7f, 0.83f, 1.0f, 1.0f), 0.85f);
+	DrawTextLine(58.0f, Canvas->ClipY - 78.0f, TEXT("1-7 scenarios | 8 procedural | 9 hybrid | 0 gaussian | R reset | Tab HUD"), FLinearColor(0.7f, 0.83f, 1.0f, 1.0f), 0.85f);
 }
 
 void AParaglideHUD::DrawPanel(float X, float Y, float Width, float Height, const FLinearColor& FillColor, const FLinearColor& BorderColor)
