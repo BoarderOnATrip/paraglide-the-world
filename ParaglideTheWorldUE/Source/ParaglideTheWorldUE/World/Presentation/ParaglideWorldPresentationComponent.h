@@ -54,8 +54,18 @@ protected:
 	virtual void ReleaseGaussianPresentation();
 
 	AParaglideWorldPresentationActor* GetPresentationOwner() const;
+	bool SpawnGaussianPresentationBinding(
+		const FSoftObjectPath& AssetPath,
+		const FSoftClassPath& ActorClassPath,
+		EParaglideGaussianPresentationProvider Provider,
+		const FTransform& LocalTransform);
 	bool SpawnGaussianActorFromClassPath(const FSoftClassPath& ActorClassPath, const FTransform& LocalTransform);
-	bool SpawnGaussianActorFromAssetPath(const FSoftObjectPath& AssetPath, const FTransform& LocalTransform);
+	bool SpawnGaussianActorFromAssetPath(
+		const FSoftObjectPath& AssetPath,
+		EParaglideGaussianPresentationProvider Provider,
+		const FTransform& LocalTransform);
+	bool SpawnGaussianActorFromResolvedClass(UClass* ActorClass, const FTransform& LocalTransform);
+	bool SpawnNanoGSActorFromAssetPath(const FSoftObjectPath& AssetPath, const FTransform& LocalTransform);
 	UClass* ResolveGaussianActorClass(const FSoftObjectPath& AssetPath) const;
 	void UpdateReadinessFlags(
 		EParaglideWorldPresentationMode RequestedMode,

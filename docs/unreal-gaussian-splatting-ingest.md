@@ -18,9 +18,29 @@ Official reference:
 
 ## Plugin path
 
-### Recommended first plugin path on Mac
+### Current repo-integrated plugin path on Mac
 
-Try `UEGaussianSplatting` first.
+The repo now vendors `NanoGS` directly under `ParaglideTheWorldUE/Plugins/NanoGS`.
+
+Reason:
+
+- It is source-available and builds in the current `UE 5.7` Mac project.
+- It imports `.ply` Gaussian splats into a native `GaussianSplatAsset`.
+- It gives the project a zero-login, in-repo test path for Gaussian destination work.
+
+Practical outcome:
+
+- `tools/import-unreal-gaussian-splat-sample.sh` imports a public sample `.ply` into Unreal.
+- `tools/create-unreal-gaussian-destination-pack.sh` wraps that imported asset in a `UParaglideDestinationPack`.
+
+Important note:
+
+- `NanoGS` currently gives us a clean render-path spike, not a full production world stack.
+- We still need collision proxies and authored airflow metadata for real destinations.
+
+### Secondary plugin path to evaluate
+
+`UEGaussianSplatting` is still worth evaluating.
 
 Reason:
 
@@ -98,6 +118,8 @@ Example:
 ```bash
 tools/download-public-gaussian-splat-sample.sh
 tools/download-public-gaussian-splat-sample.sh demo-office
+tools/import-unreal-gaussian-splat-sample.sh
+tools/create-unreal-gaussian-destination-pack.sh
 ```
 
 Verified sample:
@@ -111,7 +133,7 @@ Verified sample:
 Important note:
 
 - The sample source is not the same thing as the runtime plugin provider.
-- If you import `demo_fox_gs.ply` with `UEGaussianSplatting`, set `GaussianProvider = UEGaussianSplatting`.
+- If you import `demo_fox_gs.ply` with `NanoGS`, set `GaussianProvider = NanoGS`.
 - If you import the same `PLY` with another plugin, set the provider to that plugin instead.
 
 ### Option 1: Use an existing Polycam splat
@@ -172,6 +194,23 @@ Expected HUD result:
 - `loaded` chunk count above `0`
 
 If `live` stays `0`, the asset path is wrong or the imported asset is not a spawnable actor.
+
+## Current repo validation path
+
+For the vendored `NanoGS` path, the repo now has a complete public-sample validation flow:
+
+1. `tools/download-public-gaussian-splat-sample.sh`
+2. `tools/import-unreal-gaussian-splat-sample.sh`
+3. `tools/create-unreal-gaussian-destination-pack.sh`
+
+Current validated assets:
+
+- imported Gaussian asset:
+  - `/Game/GaussianSplats/Samples/demo_fox_gs.demo_fox_gs`
+- generated destination pack:
+  - `/Game/Destinations/Samples/PTW_DemoFoxDestinationPack.PTW_DemoFoxDestinationPack`
+
+This specific sample is for pipeline validation only. It is not a playable terrain destination.
 
 ## Collision guidance
 

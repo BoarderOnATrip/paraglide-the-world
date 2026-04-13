@@ -48,6 +48,8 @@ namespace
 	{
 		switch (Provider)
 		{
+		case EParaglideGaussianPresentationProvider::NanoGS:
+			return TEXT("NanoGS");
 		case EParaglideGaussianPresentationProvider::LumaAI:
 			return TEXT("Luma");
 		case EParaglideGaussianPresentationProvider::XverseXV3dGS:

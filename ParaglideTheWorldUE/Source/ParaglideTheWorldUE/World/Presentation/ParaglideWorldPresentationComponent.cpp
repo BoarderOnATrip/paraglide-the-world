@@ -3,6 +3,7 @@
 #include "World/Presentation/ParaglideWorldPresentationComponent.h"
 
 #include "Engine/Blueprint.h"
+#include "UObject/UnrealType.h"
 #include "EngineUtils.h"
 #include "Engine/World.h"
 #include "World/Destinations/ParaglideDestinationPack.h"
@@ -292,14 +293,19 @@ bool UParaglideWorldPresentationComponent::BuildGaussianSplatPlaceholderPresenta
 	bool bSpawnedAnyActors = false;
 	for (const FParaglideDestinationPresentationLayer& Layer : DestinationPack->PresentationLayers)
 	{
-		bSpawnedAnyActors |= SpawnGaussianActorFromAssetPath(Layer.ExternalPresentationAsset, FTransform::Identity);
-		bSpawnedAnyActors |= SpawnGaussianActorFromClassPath(Layer.ExternalPresentationActorClass, FTransform::Identity);
+		bSpawnedAnyActors |= SpawnGaussianPresentationBinding(
+			Layer.ExternalPresentationAsset,
+			Layer.ExternalPresentationActorClass,
+			Layer.GaussianProvider,
+			FTransform::Identity);
 
 		for (const FParaglideDestinationChunk& Chunk : Layer.Chunks)
 		{
-			const bool bSpawnedChunkActor =
-				SpawnGaussianActorFromAssetPath(Chunk.ExternalPresentationAsset, Chunk.LocalTransform) ||
-				SpawnGaussianActorFromClassPath(Chunk.ExternalPresentationActorClass, Chunk.LocalTransform);
+			const bool bSpawnedChunkActor = SpawnGaussianPresentationBinding(
+				Chunk.ExternalPresentationAsset,
+				Chunk.ExternalPresentationActorClass,
+				Chunk.GaussianProvider,
+				Chunk.LocalTransform);
 			bSpawnedAnyActors |= bSpawnedChunkActor;
 			if (bSpawnedChunkActor)
 			{
@@ -309,6 +315,16 @@ bool UParaglideWorldPresentationComponent::BuildGaussianSplatPlaceholderPresenta
 	}
 
 	return bSpawnedAnyActors;
+}
+
+bool UParaglideWorldPresentationComponent::SpawnGaussianPresentationBinding(
+	const FSoftObjectPath& AssetPath,
+	const FSoftClassPath& ActorClassPath,
+	const EParaglideGaussianPresentationProvider Provider,
+	const FTransform& LocalTransform)
+{
+	return SpawnGaussianActorFromAssetPath(AssetPath, Provider, LocalTransform) ||
+		SpawnGaussianActorFromClassPath(ActorClassPath, LocalTransform);
 }
 
 bool UParaglideWorldPresentationComponent::SpawnGaussianActorFromClassPath(
@@ -321,6 +337,18 @@ bool UParaglideWorldPresentationComponent::SpawnGaussianActorFromClassPath(
 	}
 
 	UClass* ActorClass = ActorClassPath.TryLoadClass<AActor>();
+	if (ActorClass == nullptr)
+	{
+		return false;
+	}
+
+	return SpawnGaussianActorFromResolvedClass(ActorClass, LocalTransform);
+}
+
+bool UParaglideWorldPresentationComponent::SpawnGaussianActorFromResolvedClass(
+	UClass* ActorClass,
+	const FTransform& LocalTransform)
+{
 	if (ActorClass == nullptr)
 	{
 		return false;
@@ -350,10 +378,40 @@ bool UParaglideWorldPresentationComponent::SpawnGaussianActorFromClassPath(
 
 bool UParaglideWorldPresentationComponent::SpawnGaussianActorFromAssetPath(
 	const FSoftObjectPath& AssetPath,
+	const EParaglideGaussianPresentationProvider Provider,
 	const FTransform& LocalTransform)
 {
+	if (Provider == EParaglideGaussianPresentationProvider::NanoGS && SpawnNanoGSActorFromAssetPath(AssetPath, LocalTransform))
+	{
+		return true;
+	}
+
 	UClass* ActorClass = ResolveGaussianActorClass(AssetPath);
 	if (ActorClass == nullptr)
+	{
+		return false;
+	}
+
+	return SpawnGaussianActorFromResolvedClass(ActorClass, LocalTransform);
+}
+
+bool UParaglideWorldPresentationComponent::SpawnNanoGSActorFromAssetPath(
+	const FSoftObjectPath& AssetPath,
+	const FTransform& LocalTransform)
+{
+	if (AssetPath.IsNull())
+	{
+		return false;
+	}
+
+	UObject* LoadedAsset = AssetPath.TryLoad();
+	if (LoadedAsset == nullptr || LoadedAsset->GetClass()->GetName() != TEXT("GaussianSplatAsset"))
+	{
+		return false;
+	}
+
+	UClass* NanoGSActorClass = LoadClass<AActor>(nullptr, TEXT("/Script/NanoGS.GaussianSplatActor"));
+	if (NanoGSActorClass == nullptr)
 	{
 		return false;
 	}
@@ -369,9 +427,38 @@ bool UParaglideWorldPresentationComponent::SpawnGaussianActorFromAssetPath(
 	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
 	const FTransform SpawnTransform = LocalTransform * PresentationOwner->GetActorTransform();
-	AActor* SpawnedActor = GetWorld()->SpawnActor<AActor>(ActorClass, SpawnTransform, SpawnParameters);
+	AActor* SpawnedActor = GetWorld()->SpawnActor<AActor>(NanoGSActorClass, SpawnTransform, SpawnParameters);
 	if (SpawnedActor == nullptr)
 	{
+		return false;
+	}
+
+	UObject* GaussianSplatComponentObject = nullptr;
+	if (const FObjectProperty* ComponentProperty = FindFProperty<FObjectProperty>(SpawnedActor->GetClass(), TEXT("GaussianSplatComponent")))
+	{
+		GaussianSplatComponentObject = ComponentProperty->GetObjectPropertyValue_InContainer(SpawnedActor);
+	}
+
+	if (GaussianSplatComponentObject == nullptr)
+	{
+		SpawnedActor->Destroy();
+		return false;
+	}
+
+	if (UFunction* SetSplatAssetFunction = GaussianSplatComponentObject->FindFunction(TEXT("SetSplatAsset")))
+	{
+		struct FSetSplatAssetParams
+		{
+			UObject* NewAsset = nullptr;
+		};
+
+		FSetSplatAssetParams Params;
+		Params.NewAsset = LoadedAsset;
+		GaussianSplatComponentObject->ProcessEvent(SetSplatAssetFunction, &Params);
+	}
+	else
+	{
+		SpawnedActor->Destroy();
 		return false;
 	}
 
