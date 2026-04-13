@@ -33,6 +33,7 @@ This repository is still in an early transition phase:
 - `docs/physics-tuning-sheet.md`: first-pass flight mechanics, tuning targets, and scenario checks
 - `docs/technical-architecture.md`: stack direction, production risks, and build phases
 - `docs/unreal-gaussian-splatting-ingest.md`: how to source and import the first Unreal Gaussian-splat destination
+- `tools/download-public-gaussian-splat-sample.sh`: fetch a public no-login Gaussian splat sample for Unreal import testing
 
 ## Run locally
 

@@ -79,6 +79,41 @@ References:
 
 ## Asset acquisition options
 
+### Option 0: Use a public no-login sample first
+
+Fastest way to validate the Unreal import path without depending on a Polycam or Fab account.
+
+Public sample source:
+
+- XVERSE's public demo folder currently exposes `demo_fox_gs.ply` and `demo_office_gs.ply`.
+- These are directly downloadable without login and are good enough to validate import, actor spawning, and runtime presentation.
+- They are not a complete destination-pack source because they do not include a matching `GLTF` collision mesh.
+
+Repo helper:
+
+- `tools/download-public-gaussian-splat-sample.sh`
+
+Example:
+
+```bash
+tools/download-public-gaussian-splat-sample.sh
+tools/download-public-gaussian-splat-sample.sh demo-office
+```
+
+Verified sample:
+
+- `demo_fox_gs.ply`
+- direct public download succeeded on `2026-04-12`
+- roughly `48.8 MB`
+- `PLY` binary, little endian
+- `206346` vertices in the file header
+
+Important note:
+
+- The sample source is not the same thing as the runtime plugin provider.
+- If you import `demo_fox_gs.ply` with `UEGaussianSplatting`, set `GaussianProvider = UEGaussianSplatting`.
+- If you import the same `PLY` with another plugin, set the provider to that plugin instead.
+
 ### Option 1: Use an existing Polycam splat
 
 Fastest way to test the game path.
