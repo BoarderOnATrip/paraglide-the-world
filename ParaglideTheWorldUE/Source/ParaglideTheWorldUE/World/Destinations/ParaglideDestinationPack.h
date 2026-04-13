@@ -19,6 +19,7 @@ UENUM(BlueprintType)
 enum class EParaglideGaussianPresentationProvider : uint8
 {
 	None UMETA(DisplayName = "None"),
+	LumaAI UMETA(DisplayName = "Luma AI"),
 	XverseXV3dGS UMETA(DisplayName = "XVERSE XV3dGS"),
 	UEGaussianSplatting UMETA(DisplayName = "UEGaussianSplatting"),
 };

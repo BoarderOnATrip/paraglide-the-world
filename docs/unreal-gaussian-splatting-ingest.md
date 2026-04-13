@@ -37,6 +37,32 @@ Important note:
 - Verify the currently available marketplace build works in your installed Unreal version before spending time on a production scene.
 - The public docs are useful, but they are not the same thing as a guarantee of current UE 5.7 marketplace availability.
 
+### Secondary path if you want the Polycam tutorial exactly
+
+You can also try the `Luma AI` Unreal plugin path, because Polycam's official Unreal article points to it directly.
+
+Why it is viable:
+
+- Luma's Fab listing explicitly says it can import `.ply` files and generate ready-to-use Blueprints.
+- It accepts both Luma-native captures and `.ply` scenes exported from other tools.
+- This matches the runtime adapter already in this repo, which can spawn plugin-generated actor assets from `ExternalPresentationAsset`.
+
+Important constraint:
+
+- Polycam's official article currently names `Unreal Engine 5.3.2` as the required version for that workflow.
+- Our live game project is already on `UE 5.7`.
+- That means you should treat the Luma path as a compatibility test, not an assumption.
+
+Official references:
+
+- `https://learn.poly.cam/hc/en-us/articles/42506758152084-Export-Gaussian-Splats-from-Polycam-to-Unreal-Engine`
+- `https://www.fab.com/listings/b52460e0-3ace-465e-a378-495a5531e318`
+
+Practical recommendation:
+
+- If you want the lowest-risk path for the main game project, try `UEGaussianSplatting` first.
+- If you specifically want the Polycam + Luma workflow, test it in a scratch Unreal project before trying to standardize it for the main game.
+
 ### Do not use first on this Mac setup
 
 Avoid `XVERSE XV3dGS` as the first integration on this machine.
