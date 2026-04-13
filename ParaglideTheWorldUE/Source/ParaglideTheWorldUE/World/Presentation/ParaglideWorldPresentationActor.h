@@ -49,6 +49,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Paraglide|Presentation")
 	const FParaglideWorldPresentationReadiness& GetPresentationReadiness() const;
 
+	UFUNCTION(BlueprintPure, Category = "Paraglide|Presentation")
+	FParaglideWorldPresentationSnapshot GetPresentationSnapshot() const;
+
 	UFUNCTION(BlueprintCallable, Category = "Paraglide|Presentation")
 	void SelectProceduralFallback();
 

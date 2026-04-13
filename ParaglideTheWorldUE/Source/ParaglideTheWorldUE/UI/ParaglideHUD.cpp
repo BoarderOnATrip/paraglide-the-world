@@ -4,9 +4,11 @@
 #include "Engine/Engine.h"
 #include "Engine/Font.h"
 #include "CanvasItem.h"
+#include "EngineUtils.h"
 #include "ParaglideTheWorldUE/Flight/ParaglideFlightComponent.h"
 #include "ParaglideTheWorldUE/Player/ParaglideFlightPawn.h"
 #include "ParaglideTheWorldUE/Player/ParaglidePlayerController.h"
+#include "ParaglideTheWorldUE/World/Presentation/ParaglideWorldPresentationActor.h"
 
 namespace
 {
@@ -23,6 +25,37 @@ namespace
 	FString FormatDistanceMeters(float DistanceMeters)
 	{
 		return DistanceMeters >= 0.0f ? FString::Printf(TEXT("%.0f m"), DistanceMeters) : FString(TEXT("--"));
+	}
+
+	FString FormatPresentationMode(const EParaglideWorldPresentationMode Mode)
+	{
+		switch (Mode)
+		{
+		case EParaglideWorldPresentationMode::Automatic:
+			return TEXT("Auto");
+		case EParaglideWorldPresentationMode::ProceduralFallback:
+			return TEXT("Procedural");
+		case EParaglideWorldPresentationMode::Hybrid:
+			return TEXT("Hybrid");
+		case EParaglideWorldPresentationMode::GaussianSplatPlaceholder:
+			return TEXT("Gaussian");
+		}
+
+		return TEXT("Unknown");
+	}
+
+	FString FormatGaussianProvider(const EParaglideGaussianPresentationProvider Provider)
+	{
+		switch (Provider)
+		{
+		case EParaglideGaussianPresentationProvider::XverseXV3dGS:
+			return TEXT("XVERSE");
+		case EParaglideGaussianPresentationProvider::UEGaussianSplatting:
+			return TEXT("UEGS");
+		case EParaglideGaussianPresentationProvider::None:
+		default:
+			return TEXT("None");
+		}
 	}
 }
 
@@ -51,6 +84,28 @@ void AParaglideHUD::DrawHUD()
 	const FString ScenarioName = FlightPawn->GetCurrentScenarioName();
 	const FString ScenarioSummary = FlightPawn->GetCurrentScenarioSummary();
 	const FString ScenarioLine = FormatScenarioHint(ScenarioName, ScenarioSummary);
+	FString WorldLine = TEXT("World procedural fallback | GS provider None | live 0 | loaded 0/0");
+	if (UWorld* World = GetWorld())
+	{
+		for (TActorIterator<AParaglideWorldPresentationActor> It(World); It; ++It)
+		{
+			const FParaglideWorldPresentationSnapshot PresentationSnapshot = It->GetPresentationSnapshot();
+			const FParaglideWorldPresentationReadiness& PresentationReadiness = PresentationSnapshot.Readiness;
+			const FString DestinationName = PresentationSnapshot.DestinationName.IsEmpty()
+				? TEXT("Untitled destination")
+				: PresentationSnapshot.DestinationName.ToString();
+			WorldLine = FString::Printf(
+				TEXT("%s | %s -> %s | GS %s | live %d | loaded %d/%d"),
+				*DestinationName,
+				*FormatPresentationMode(PresentationReadiness.RequestedMode),
+				*FormatPresentationMode(PresentationReadiness.RuntimeMode),
+				*FormatGaussianProvider(PresentationReadiness.PrimaryGaussianProvider),
+				PresentationReadiness.LiveGaussianActorCount,
+				PresentationReadiness.LoadedChunkCount,
+				PresentationReadiness.DeclaredGaussianChunkCount);
+			break;
+		}
+	}
 	const bool bLaunchControls = FlightState.FlightPhase == EParaglideFlightPhase::Launch;
 	const FString ControlsLine = bLaunchControls
 		? TEXT("LShift/RShift A-risers | S/L rear risers | D+F / J+K brakes | G/H or Space speed bar")
@@ -121,6 +176,7 @@ void AParaglideHUD::DrawHUD()
 	DrawTextLine(58.0f, 224.0f, RiskLine, FLinearColor(0.86f, 0.91f, 1.0f, 1.0f), 0.86f);
 	DrawTextLine(58.0f, 256.0f, SurgeLine, FLinearColor(0.86f, 0.91f, 1.0f, 1.0f), 0.84f);
 	DrawTextLine(58.0f, 288.0f, LandingLine, FLinearColor(0.82f, 0.88f, 1.0f, 1.0f), 0.9f);
+	DrawTextLine(58.0f, 320.0f, WorldLine, FLinearColor(0.8f, 0.9f, 1.0f, 1.0f), 0.83f);
 
 	DrawPanel(36.0f, Canvas->ClipY - 202.0f, 780.0f, 150.0f, FLinearColor(0.03f, 0.05f, 0.08f, 0.72f), FLinearColor(0.55f, 0.8f, 1.0f, 0.5f));
 	DrawTextLine(58.0f, Canvas->ClipY - 174.0f, ControlsLine, FLinearColor(0.92f, 0.96f, 1.0f, 1.0f), 0.9f);

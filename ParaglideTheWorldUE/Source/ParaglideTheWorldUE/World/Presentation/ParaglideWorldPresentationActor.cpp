@@ -103,6 +103,21 @@ const FParaglideWorldPresentationReadiness& AParaglideWorldPresentationActor::Ge
 	return PresentationComponent ? PresentationComponent->GetReadiness() : EmptyReadiness;
 }
 
+FParaglideWorldPresentationSnapshot AParaglideWorldPresentationActor::GetPresentationSnapshot() const
+{
+	FParaglideWorldPresentationSnapshot Snapshot;
+	Snapshot.Readiness = GetPresentationReadiness();
+
+	if (LoadedDestinationAsset != nullptr)
+	{
+		Snapshot.DestinationId = LoadedDestinationAsset->DestinationId;
+		Snapshot.DestinationName = LoadedDestinationAsset->DisplayName;
+		Snapshot.DestinationSummary = LoadedDestinationAsset->Summary;
+	}
+
+	return Snapshot;
+}
+
 void AParaglideWorldPresentationActor::SelectProceduralFallback()
 {
 	SetPresentationMode(EParaglideWorldPresentationMode::ProceduralFallback);

@@ -15,6 +15,14 @@ enum class EParaglideDestinationPresentationMode : uint8
 	Hybrid UMETA(DisplayName = "Hybrid"),
 };
 
+UENUM(BlueprintType)
+enum class EParaglideGaussianPresentationProvider : uint8
+{
+	None UMETA(DisplayName = "None"),
+	XverseXV3dGS UMETA(DisplayName = "XVERSE XV3dGS"),
+	UEGaussianSplatting UMETA(DisplayName = "UEGaussianSplatting"),
+};
+
 USTRUCT(BlueprintType)
 struct FParaglideDestinationCollisionMetadata
 {
@@ -85,6 +93,12 @@ struct FParaglideDestinationChunk
 	FSoftObjectPath ExternalPresentationAsset;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Paraglide|Destination")
+	FSoftClassPath ExternalPresentationActorClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Paraglide|Destination")
+	EParaglideGaussianPresentationProvider GaussianProvider = EParaglideGaussianPresentationProvider::None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Paraglide|Destination")
 	FParaglideDestinationCollisionMetadata Collision;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Paraglide|Destination")
@@ -108,6 +122,12 @@ struct FParaglideDestinationPresentationLayer
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Paraglide|Destination")
 	FSoftObjectPath ExternalPresentationAsset;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Paraglide|Destination")
+	FSoftClassPath ExternalPresentationActorClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Paraglide|Destination")
+	EParaglideGaussianPresentationProvider GaussianProvider = EParaglideGaussianPresentationProvider::None;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Paraglide|Destination")
 	TArray<FParaglideDestinationChunk> Chunks;

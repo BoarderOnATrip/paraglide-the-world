@@ -2,6 +2,7 @@
 
 #include "World/Presentation/ParaglideWorldPresentationComponent.h"
 
+#include "Engine/Blueprint.h"
 #include "EngineUtils.h"
 #include "Engine/World.h"
 #include "World/Destinations/ParaglideDestinationPack.h"
@@ -42,31 +43,47 @@ bool UParaglideWorldPresentationComponent::ActivateProceduralFallbackPath()
 
 bool UParaglideWorldPresentationComponent::ActivateHybridPath()
 {
-	const bool bHasGaussianPlaceholder = BuildGaussianSplatPlaceholderPresentation();
-	const bool bBuiltFallback = BuildProceduralFallbackPresentation();
+	int32 LoadedChunkCount = 0;
+	const bool bHasGaussianPlaceholder = BuildGaussianSplatPlaceholderPresentation(LoadedChunkCount);
+	if (bHasGaussianPlaceholder)
+	{
+		ReleaseProceduralFallbackPresentation();
+	}
+	const bool bBuiltFallback = bHasGaussianPlaceholder ? false : BuildProceduralFallbackPresentation();
 	UpdateReadinessFlags(
 		PresentationMode,
-		bBuiltFallback ? EParaglideWorldPresentationMode::ProceduralFallback : EParaglideWorldPresentationMode::Hybrid,
+		bHasGaussianPlaceholder ? EParaglideWorldPresentationMode::Hybrid : EParaglideWorldPresentationMode::ProceduralFallback,
 		bBuiltFallback,
 		bHasGaussianPlaceholder,
-		false,
+		bHasGaussianPlaceholder,
 		Readiness.TotalChunkCount,
-		Readiness.DeclaredGaussianChunkCount);
+		Readiness.DeclaredGaussianChunkCount,
+		SpawnedGaussianActors.Num(),
+		Readiness.PrimaryGaussianProvider,
+		LoadedChunkCount);
 	return bBuiltFallback || bHasGaussianPlaceholder;
 }
 
 bool UParaglideWorldPresentationComponent::ActivateGaussianSplatPlaceholderPath()
 {
-	const bool bHasGaussianPlaceholder = BuildGaussianSplatPlaceholderPresentation();
-	const bool bBuiltFallback = BuildProceduralFallbackPresentation();
+	int32 LoadedChunkCount = 0;
+	const bool bHasGaussianPlaceholder = BuildGaussianSplatPlaceholderPresentation(LoadedChunkCount);
+	if (bHasGaussianPlaceholder)
+	{
+		ReleaseProceduralFallbackPresentation();
+	}
+	const bool bBuiltFallback = bHasGaussianPlaceholder ? false : BuildProceduralFallbackPresentation();
 	UpdateReadinessFlags(
 		PresentationMode,
-		bBuiltFallback ? EParaglideWorldPresentationMode::ProceduralFallback : EParaglideWorldPresentationMode::GaussianSplatPlaceholder,
+		bHasGaussianPlaceholder ? EParaglideWorldPresentationMode::GaussianSplatPlaceholder : EParaglideWorldPresentationMode::ProceduralFallback,
 		bBuiltFallback,
 		bHasGaussianPlaceholder,
-		false,
+		bHasGaussianPlaceholder,
 		Readiness.TotalChunkCount,
-		Readiness.DeclaredGaussianChunkCount);
+		Readiness.DeclaredGaussianChunkCount,
+		SpawnedGaussianActors.Num(),
+		Readiness.PrimaryGaussianProvider,
+		LoadedChunkCount);
 	return bBuiltFallback || bHasGaussianPlaceholder;
 }
 
@@ -77,21 +94,32 @@ void UParaglideWorldPresentationComponent::RefreshPresentationPath()
 
 	int32 TotalChunkCount = 0;
 	int32 DeclaredGaussianChunkCount = 0;
+	EParaglideGaussianPresentationProvider PrimaryGaussianProvider = EParaglideGaussianPresentationProvider::None;
 	if (DestinationPack != nullptr)
 	{
 		for (const FParaglideDestinationPresentationLayer& Layer : DestinationPack->PresentationLayers)
 		{
-			if (!Layer.ExternalPresentationAsset.IsNull())
+			const bool bLayerHasGaussianBinding = !Layer.ExternalPresentationAsset.IsNull() || !Layer.ExternalPresentationActorClass.IsNull();
+			if (bLayerHasGaussianBinding)
 			{
 				++DeclaredGaussianChunkCount;
+				if (PrimaryGaussianProvider == EParaglideGaussianPresentationProvider::None)
+				{
+					PrimaryGaussianProvider = Layer.GaussianProvider;
+				}
 			}
 
 			TotalChunkCount += Layer.Chunks.Num();
 			for (const FParaglideDestinationChunk& Chunk : Layer.Chunks)
 			{
-				if (!Chunk.ExternalPresentationAsset.IsNull())
+				const bool bChunkHasGaussianBinding = !Chunk.ExternalPresentationAsset.IsNull() || !Chunk.ExternalPresentationActorClass.IsNull();
+				if (bChunkHasGaussianBinding)
 				{
 					++DeclaredGaussianChunkCount;
+					if (PrimaryGaussianProvider == EParaglideGaussianPresentationProvider::None)
+					{
+						PrimaryGaussianProvider = Chunk.GaussianProvider;
+					}
 				}
 			}
 		}
@@ -99,6 +127,7 @@ void UParaglideWorldPresentationComponent::RefreshPresentationPath()
 
 	Readiness.TotalChunkCount = TotalChunkCount;
 	Readiness.DeclaredGaussianChunkCount = DeclaredGaussianChunkCount;
+	Readiness.PrimaryGaussianProvider = PrimaryGaussianProvider;
 
 	const EParaglideWorldPresentationMode RequestedMode = PresentationMode;
 	EParaglideWorldPresentationMode EffectiveMode = PresentationMode;
@@ -111,30 +140,56 @@ void UParaglideWorldPresentationComponent::RefreshPresentationPath()
 	bool bGaussianPlaceholderReady = false;
 	bool bSupportsSelectedMode = false;
 	EParaglideWorldPresentationMode RuntimeMode = EParaglideWorldPresentationMode::ProceduralFallback;
+	int32 LoadedChunkCount = 0;
 
 	switch (EffectiveMode)
 	{
 	case EParaglideWorldPresentationMode::GaussianSplatPlaceholder:
-		bGaussianPlaceholderReady = BuildGaussianSplatPlaceholderPresentation();
-		bProceduralReady = BuildProceduralFallbackPresentation();
-		RuntimeMode = bProceduralReady ? EParaglideWorldPresentationMode::ProceduralFallback : EParaglideWorldPresentationMode::GaussianSplatPlaceholder;
+		bGaussianPlaceholderReady = BuildGaussianSplatPlaceholderPresentation(LoadedChunkCount);
+		if (SpawnedGaussianActors.Num() > 0)
+		{
+			ReleaseProceduralFallbackPresentation();
+			RuntimeMode = EParaglideWorldPresentationMode::GaussianSplatPlaceholder;
+			bSupportsSelectedMode = true;
+		}
+		else
+		{
+			bProceduralReady = BuildProceduralFallbackPresentation();
+			RuntimeMode = bProceduralReady ? EParaglideWorldPresentationMode::ProceduralFallback : EParaglideWorldPresentationMode::GaussianSplatPlaceholder;
+		}
 		break;
 	case EParaglideWorldPresentationMode::Hybrid:
-		bGaussianPlaceholderReady = BuildGaussianSplatPlaceholderPresentation();
-		bProceduralReady = BuildProceduralFallbackPresentation();
-		RuntimeMode = EParaglideWorldPresentationMode::Hybrid;
+		bGaussianPlaceholderReady = BuildGaussianSplatPlaceholderPresentation(LoadedChunkCount);
+		if (SpawnedGaussianActors.Num() > 0)
+		{
+			ReleaseProceduralFallbackPresentation();
+			RuntimeMode = EParaglideWorldPresentationMode::Hybrid;
+			bSupportsSelectedMode = true;
+		}
+		else
+		{
+			bProceduralReady = BuildProceduralFallbackPresentation();
+			RuntimeMode = EParaglideWorldPresentationMode::ProceduralFallback;
+		}
 		break;
 	case EParaglideWorldPresentationMode::ProceduralFallback:
+		ReleaseGaussianPresentation();
 		bProceduralReady = BuildProceduralFallbackPresentation();
 		RuntimeMode = EParaglideWorldPresentationMode::ProceduralFallback;
 		bSupportsSelectedMode = bProceduralReady;
 		break;
 	case EParaglideWorldPresentationMode::Automatic:
 	default:
+		ReleaseGaussianPresentation();
 		bProceduralReady = BuildProceduralFallbackPresentation();
 		RuntimeMode = EParaglideWorldPresentationMode::ProceduralFallback;
 		bSupportsSelectedMode = bProceduralReady;
 		break;
+	}
+
+	if (RequestedMode == EParaglideWorldPresentationMode::Automatic)
+	{
+		bSupportsSelectedMode = bProceduralReady || bGaussianPlaceholderReady;
 	}
 
 	UpdateReadinessFlags(
@@ -144,7 +199,10 @@ void UParaglideWorldPresentationComponent::RefreshPresentationPath()
 		bGaussianPlaceholderReady,
 		bSupportsSelectedMode,
 		TotalChunkCount,
-		DeclaredGaussianChunkCount);
+		DeclaredGaussianChunkCount,
+		SpawnedGaussianActors.Num(),
+		PrimaryGaussianProvider,
+		LoadedChunkCount);
 }
 
 const FParaglideWorldPresentationReadiness& UParaglideWorldPresentationComponent::GetReadiness() const
@@ -168,14 +226,14 @@ bool UParaglideWorldPresentationComponent::CanUseGaussianSplatPlaceholder() cons
 
 	for (const FParaglideDestinationPresentationLayer& Layer : DestinationPack->PresentationLayers)
 	{
-		if (!Layer.ExternalPresentationAsset.IsNull())
+		if (!Layer.ExternalPresentationAsset.IsNull() || !Layer.ExternalPresentationActorClass.IsNull())
 		{
 			return true;
 		}
 
 		for (const FParaglideDestinationChunk& Chunk : Layer.Chunks)
 		{
-			if (!Chunk.ExternalPresentationAsset.IsNull())
+			if (!Chunk.ExternalPresentationAsset.IsNull() || !Chunk.ExternalPresentationActorClass.IsNull())
 			{
 				return true;
 			}
@@ -200,7 +258,7 @@ bool UParaglideWorldPresentationComponent::BuildProceduralFallbackPresentation()
 
 	for (TActorIterator<AActor> It(GetWorld(), PresentationOwner->ProceduralFallbackActorClass); It; ++It)
 	{
-		if (*It != PresentationOwner)
+		if (*It != PresentationOwner && It->GetOwner() == PresentationOwner)
 		{
 			SpawnedFallbackActor = *It;
 			return true;
@@ -218,9 +276,136 @@ bool UParaglideWorldPresentationComponent::BuildProceduralFallbackPresentation()
 	return IsValid(SpawnedFallbackActor);
 }
 
-bool UParaglideWorldPresentationComponent::BuildGaussianSplatPlaceholderPresentation()
+bool UParaglideWorldPresentationComponent::BuildGaussianSplatPlaceholderPresentation(int32& OutLoadedChunkCount)
 {
-	return CanUseGaussianSplatPlaceholder();
+	AParaglideWorldPresentationActor* PresentationOwner = GetPresentationOwner();
+	UParaglideDestinationPack* DestinationPack = PresentationOwner != nullptr ? PresentationOwner->GetLoadedDestinationAsset() : nullptr;
+	OutLoadedChunkCount = 0;
+	if (PresentationOwner == nullptr || GetWorld() == nullptr || DestinationPack == nullptr)
+	{
+		ReleaseGaussianPresentation();
+		return false;
+	}
+
+	ReleaseGaussianPresentation();
+
+	bool bSpawnedAnyActors = false;
+	for (const FParaglideDestinationPresentationLayer& Layer : DestinationPack->PresentationLayers)
+	{
+		bSpawnedAnyActors |= SpawnGaussianActorFromAssetPath(Layer.ExternalPresentationAsset, FTransform::Identity);
+		bSpawnedAnyActors |= SpawnGaussianActorFromClassPath(Layer.ExternalPresentationActorClass, FTransform::Identity);
+
+		for (const FParaglideDestinationChunk& Chunk : Layer.Chunks)
+		{
+			const bool bSpawnedChunkActor =
+				SpawnGaussianActorFromAssetPath(Chunk.ExternalPresentationAsset, Chunk.LocalTransform) ||
+				SpawnGaussianActorFromClassPath(Chunk.ExternalPresentationActorClass, Chunk.LocalTransform);
+			bSpawnedAnyActors |= bSpawnedChunkActor;
+			if (bSpawnedChunkActor)
+			{
+				++OutLoadedChunkCount;
+			}
+		}
+	}
+
+	return bSpawnedAnyActors;
+}
+
+bool UParaglideWorldPresentationComponent::SpawnGaussianActorFromClassPath(
+	const FSoftClassPath& ActorClassPath,
+	const FTransform& LocalTransform)
+{
+	if (ActorClassPath.IsNull())
+	{
+		return false;
+	}
+
+	UClass* ActorClass = ActorClassPath.TryLoadClass<AActor>();
+	if (ActorClass == nullptr)
+	{
+		return false;
+	}
+
+	AParaglideWorldPresentationActor* PresentationOwner = GetPresentationOwner();
+	if (PresentationOwner == nullptr || GetWorld() == nullptr)
+	{
+		return false;
+	}
+
+	FActorSpawnParameters SpawnParameters;
+	SpawnParameters.Owner = PresentationOwner;
+	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	const FTransform SpawnTransform = LocalTransform * PresentationOwner->GetActorTransform();
+	AActor* SpawnedActor = GetWorld()->SpawnActor<AActor>(ActorClass, SpawnTransform, SpawnParameters);
+	if (SpawnedActor == nullptr)
+	{
+		return false;
+	}
+
+	SpawnedActor->AttachToActor(PresentationOwner, FAttachmentTransformRules::KeepWorldTransform);
+	SpawnedGaussianActors.Add(SpawnedActor);
+	return true;
+}
+
+bool UParaglideWorldPresentationComponent::SpawnGaussianActorFromAssetPath(
+	const FSoftObjectPath& AssetPath,
+	const FTransform& LocalTransform)
+{
+	UClass* ActorClass = ResolveGaussianActorClass(AssetPath);
+	if (ActorClass == nullptr)
+	{
+		return false;
+	}
+
+	AParaglideWorldPresentationActor* PresentationOwner = GetPresentationOwner();
+	if (PresentationOwner == nullptr || GetWorld() == nullptr)
+	{
+		return false;
+	}
+
+	FActorSpawnParameters SpawnParameters;
+	SpawnParameters.Owner = PresentationOwner;
+	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	const FTransform SpawnTransform = LocalTransform * PresentationOwner->GetActorTransform();
+	AActor* SpawnedActor = GetWorld()->SpawnActor<AActor>(ActorClass, SpawnTransform, SpawnParameters);
+	if (SpawnedActor == nullptr)
+	{
+		return false;
+	}
+
+	SpawnedActor->AttachToActor(PresentationOwner, FAttachmentTransformRules::KeepWorldTransform);
+	SpawnedGaussianActors.Add(SpawnedActor);
+	return true;
+}
+
+UClass* UParaglideWorldPresentationComponent::ResolveGaussianActorClass(const FSoftObjectPath& AssetPath) const
+{
+	if (AssetPath.IsNull())
+	{
+		return nullptr;
+	}
+
+	if (UClass* DirectClass = LoadClass<AActor>(nullptr, *AssetPath.ToString()))
+	{
+		return DirectClass;
+	}
+
+	UObject* LoadedAsset = AssetPath.TryLoad();
+	if (UClass* LoadedClass = Cast<UClass>(LoadedAsset))
+	{
+		return LoadedClass->IsChildOf(AActor::StaticClass()) ? LoadedClass : nullptr;
+	}
+
+	if (const UBlueprint* BlueprintAsset = Cast<UBlueprint>(LoadedAsset))
+	{
+		return BlueprintAsset->GeneratedClass != nullptr && BlueprintAsset->GeneratedClass->IsChildOf(AActor::StaticClass())
+			? BlueprintAsset->GeneratedClass
+			: nullptr;
+	}
+
+	return nullptr;
 }
 
 void UParaglideWorldPresentationComponent::ReleaseProceduralFallbackPresentation()
@@ -230,6 +415,19 @@ void UParaglideWorldPresentationComponent::ReleaseProceduralFallbackPresentation
 		SpawnedFallbackActor->Destroy();
 		SpawnedFallbackActor = nullptr;
 	}
+}
+
+void UParaglideWorldPresentationComponent::ReleaseGaussianPresentation()
+{
+	for (AActor* GaussianActor : SpawnedGaussianActors)
+	{
+		if (IsValid(GaussianActor))
+		{
+			GaussianActor->Destroy();
+		}
+	}
+
+	SpawnedGaussianActors.Reset();
 }
 
 AParaglideWorldPresentationActor* UParaglideWorldPresentationComponent::GetPresentationOwner() const
@@ -244,12 +442,18 @@ void UParaglideWorldPresentationComponent::UpdateReadinessFlags(
 	const bool bGaussianPlaceholderReady,
 	const bool bSupportsSelectedMode,
 	const int32 TotalChunkCount,
-	const int32 DeclaredGaussianChunkCount)
+	const int32 DeclaredGaussianChunkCount,
+	const int32 LiveGaussianActorCount,
+	const EParaglideGaussianPresentationProvider PrimaryGaussianProvider,
+	const int32 LoadedChunkCount)
 {
 	Readiness.RequestedMode = RequestedMode;
 	Readiness.RuntimeMode = RuntimeMode;
 	Readiness.TotalChunkCount = TotalChunkCount;
 	Readiness.DeclaredGaussianChunkCount = DeclaredGaussianChunkCount;
+	Readiness.LiveGaussianActorCount = LiveGaussianActorCount;
+	Readiness.LoadedChunkCount = LoadedChunkCount;
+	Readiness.PrimaryGaussianProvider = PrimaryGaussianProvider;
 	Readiness.bHasDestinationAsset = GetPresentationOwner() && !GetPresentationOwner()->GetDestinationAsset().IsNull();
 	Readiness.bHasPresentationHost = GetPresentationOwner() != nullptr;
 	Readiness.bHasProceduralFallback = bProceduralReady;

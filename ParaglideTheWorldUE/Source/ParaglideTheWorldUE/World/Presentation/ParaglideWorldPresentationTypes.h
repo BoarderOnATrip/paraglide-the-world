@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "World/Destinations/ParaglideDestinationPack.h"
 #include "ParaglideWorldPresentationTypes.generated.h"
 
 UENUM(BlueprintType)
@@ -48,4 +49,31 @@ struct FParaglideWorldPresentationReadiness
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
 	int32 DeclaredGaussianChunkCount = 0;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	int32 LiveGaussianActorCount = 0;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	EParaglideGaussianPresentationProvider PrimaryGaussianProvider = EParaglideGaussianPresentationProvider::None;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	int32 LoadedChunkCount = 0;
+};
+
+USTRUCT(BlueprintType)
+struct FParaglideWorldPresentationSnapshot
+{
+	GENERATED_BODY()
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	FName DestinationId = NAME_None;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	FText DestinationName;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	FText DestinationSummary;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Paraglide")
+	FParaglideWorldPresentationReadiness Readiness;
 };

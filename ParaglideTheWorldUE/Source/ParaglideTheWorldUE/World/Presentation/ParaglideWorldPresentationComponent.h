@@ -49,10 +49,14 @@ protected:
 	virtual void BeginPlay() override;
 
 	virtual bool BuildProceduralFallbackPresentation();
-	virtual bool BuildGaussianSplatPlaceholderPresentation();
+	virtual bool BuildGaussianSplatPlaceholderPresentation(int32& OutLoadedChunkCount);
 	virtual void ReleaseProceduralFallbackPresentation();
+	virtual void ReleaseGaussianPresentation();
 
 	AParaglideWorldPresentationActor* GetPresentationOwner() const;
+	bool SpawnGaussianActorFromClassPath(const FSoftClassPath& ActorClassPath, const FTransform& LocalTransform);
+	bool SpawnGaussianActorFromAssetPath(const FSoftObjectPath& AssetPath, const FTransform& LocalTransform);
+	UClass* ResolveGaussianActorClass(const FSoftObjectPath& AssetPath) const;
 	void UpdateReadinessFlags(
 		EParaglideWorldPresentationMode RequestedMode,
 		EParaglideWorldPresentationMode RuntimeMode,
@@ -60,7 +64,10 @@ protected:
 		bool bGaussianPlaceholderReady,
 		bool bSupportsSelectedMode,
 		int32 TotalChunkCount,
-		int32 DeclaredGaussianChunkCount);
+		int32 DeclaredGaussianChunkCount,
+		int32 LiveGaussianActorCount,
+		EParaglideGaussianPresentationProvider PrimaryGaussianProvider,
+		int32 LoadedChunkCount);
 
 private:
 	UPROPERTY(VisibleInstanceOnly, Category = "Paraglide|Presentation")
@@ -71,4 +78,7 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<AActor> SpawnedFallbackActor;
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<AActor>> SpawnedGaussianActors;
 };
