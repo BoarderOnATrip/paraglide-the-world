@@ -2,9 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
+#include "World/Presentation/ParaglideWorldPresentationTypes.h"
 #include "ParaglideGameMode.generated.h"
 
 class AParaglidePrototypeWorld;
+class UParaglideDestinationPack;
 
 UCLASS()
 class PARAGLIDETHEWORLDUE_API AParaglideGameMode : public AGameModeBase
@@ -16,11 +18,30 @@ public:
 	virtual void StartPlay() override;
 
 private:
-	void SpawnPrototypeWorldIfNeeded();
+	void SpawnRuntimeActorsIfNeeded();
+	void SpawnRuntimeActorIfNeeded(TSubclassOf<AActor> ActorClass, TObjectPtr<AActor>& SpawnedActor);
 
 	UPROPERTY(EditDefaultsOnly, Category = "Paraglide|World")
-	TSubclassOf<AParaglidePrototypeWorld> PrototypeWorldClass;
+	TSubclassOf<AActor> PrototypeWorldClass;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Paraglide|World")
+	TSubclassOf<AActor> DestinationActorClass;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Paraglide|World")
+	TSubclassOf<AActor> PresentationActorClass;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Paraglide|World")
+	TSoftObjectPtr<UParaglideDestinationPack> DefaultDestinationPack;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Paraglide|World")
+	EParaglideWorldPresentationMode PreferredPresentationMode = EParaglideWorldPresentationMode::Automatic;
 
 	UPROPERTY()
-	TObjectPtr<AParaglidePrototypeWorld> SpawnedPrototypeWorld;
+	TObjectPtr<AActor> SpawnedPrototypeWorld;
+
+	UPROPERTY()
+	TObjectPtr<AActor> SpawnedDestinationActor;
+
+	UPROPERTY()
+	TObjectPtr<AActor> SpawnedPresentationActor;
 };
